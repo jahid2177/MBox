@@ -31,7 +31,7 @@ jobs:
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - name: Build Android APK (release, no signing key)
-        run: flutter build apk --release --split-per-abi --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://mystreamflix.biz.id' }}
+        run: flutter build apk --release --split-per-abi --dart-define=ENABLE_ACCOUNTS=false
       - uses: actions/upload-artifact@v4
         with:
           name: MyStreamFlix-Flutter-Android-APK

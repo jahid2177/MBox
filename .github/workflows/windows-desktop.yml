@@ -34,7 +34,7 @@ jobs:
       - run: flutter test
       - name: Build Windows release
         shell: pwsh
-        run: flutter build windows --release --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://mystreamflix.biz.id' }}
+        run: flutter build windows --release --dart-define=ENABLE_ACCOUNTS=false
       - uses: actions/upload-artifact@v4
         with:
           name: MyStreamFlix-Flutter-Windows-Desktop

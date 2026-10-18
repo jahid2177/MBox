@@ -1,0 +1,13 @@
+.dart_tool/
+.flutter-plugins*
+.packages
+build/
+coverage/
+**/.gradle/
+**/Pods/
+*.iml
+.idea/
+.vscode/
+.env
+android/key.properties
+*.jks

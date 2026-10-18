@@ -42,8 +42,26 @@ class _LiveScreenState extends State<LiveScreen> {
               onSelected: (_) => setState(() => category = categories[i])))),
         ]))),
       if (app.loading && channels.isEmpty) const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
-      else if (channels.isEmpty) const SliverFillRemaining(child: Center(child: Padding(
-        padding: EdgeInsets.all(22), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(app.error ?? (app.warnings.isEmpty ? 'No Live TV channels found in the selected server.' : 'Live TV feed unavailable: ${app.warnings.first}'), textAlign: TextAlign.center), const SizedBox(height: 12), FilledButton(onPressed: app.refresh, child: const Text('Retry'))]))))
+      else if (channels.isEmpty) SliverFillRemaining(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  app.error ?? (app.warnings.isEmpty
+                    ? 'No Live TV channels found in the selected server.'
+                    : 'Live TV feed unavailable: ${app.warnings.first}'),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: app.refresh, child: const Text('Retry')),
+              ],
+            ),
+          ),
+        ),
+      )
       else SliverPadding(padding: const EdgeInsets.all(16), sliver:
         SliverLayoutBuilder(builder: (context, constraints) {
           final cols = (constraints.crossAxisExtent / 210).floor().clamp(2, 6).toInt();

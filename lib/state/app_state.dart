@@ -49,7 +49,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> setServer(int index) async {
-    if (index < 0 || index >= servers.length || serverIndex == index) return;
+    if (index < 0 || index >= servers.length || serverIndex == index) {
+      return;
+    }
     serverIndex = index;
     catalog = [];
     warnings = [];
@@ -59,7 +61,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
-    if (servers.isEmpty) return;
+    if (servers.isEmpty) {
+      return;
+    }
     final currentVersion = ++_refreshVersion;
     loading = true;
     error = null;
@@ -67,16 +71,22 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       final results = await sources.load(servers[serverIndex], onProgress: (items, problems) {
-        if (currentVersion != _refreshVersion) return;
+        if (currentVersion != _refreshVersion) {
+          return;
+        }
         catalog = items;
         warnings = problems;
         notifyListeners();
       });
-      if (currentVersion != _refreshVersion) return;
+      if (currentVersion != _refreshVersion) {
+        return;
+      }
       catalog = results.items;
       warnings = results.problems;
     } catch (e) {
-      if (currentVersion != _refreshVersion) return;
+      if (currentVersion != _refreshVersion) {
+        return;
+      }
       // Do not replace failed requests with fabricated content.
       error = e.toString().replaceFirst('Bad state: ', '').replaceFirst('Exception: ', '');
     } finally {
@@ -85,39 +95,56 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> login(String email, String password) async {
-    if (!accountsEnabled || api == null) throw StateError('Account backend is not configured.');
+    if (!accountsEnabled || api == null) {
+      throw StateError('Account backend is not configured.');
+    }
     user = await api!.login(email, password);
     notifyListeners();
   }
 
   Future<void> register(String name, String email, String password) async {
-    if (!accountsEnabled || api == null) throw StateError('Account backend is not configured.');
+    if (!accountsEnabled || api == null) {
+      throw StateError('Account backend is not configured.');
+    }
     user = await api!.register(name, email, password);
     notifyListeners();
   }
 
   Future<void> logout() async {
-    try { if (accountsEnabled) await api?.logout(); }
-    finally { user = null; notifyListeners(); }
+    try {
+      if (accountsEnabled) {
+        await api?.logout();
+      }
+    } finally {
+      user = null;
+      notifyListeners();
+    }
   }
 
   Future<void> toggleFavorite(MediaItem movie) async {
     // Local watchlist works WITHOUT logging in or any user backend.
-    if (favoriteIds.contains(movie.id)) favoriteIds.remove(movie.id);
-    else favoriteIds.add(movie.id);
+    if (favoriteIds.contains(movie.id)) {
+      favoriteIds.remove(movie.id);
+    } else {
+      favoriteIds.add(movie.id);
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('favorites_local', favoriteIds.toList());
     notifyListeners();
   }
 
   Future<void> switchProfile(String id) async {
-    if (user == null || !accountsEnabled || api == null) return;
+    if (user == null || !accountsEnabled || api == null) {
+      return;
+    }
     user = await api!.switchProfile(id);
     notifyListeners();
   }
 
   Future<void> addProfile(String name, {bool isKids = false}) async {
-    if (user == null || !accountsEnabled || api == null) return;
+    if (user == null || !accountsEnabled || api == null) {
+      return;
+    }
     user = await api!.addProfile(name, isKids: isKids);
     notifyListeners();
   }

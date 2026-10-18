@@ -56,7 +56,9 @@ class ExternalCatalogService {
   Future<CatalogLoadResult> load(CatalogServer server, {
     void Function(List<MediaItem> items, List<String> problems)? onProgress,
   }) async {
-    if (server.maintenance) throw StateError('${server.name} is under maintenance.');
+    if (server.maintenance) {
+      throw StateError('${server.name} is under maintenance.');
+    }
     final sources = <({String label, String url, String type})>[
       (label: 'Live TV', url: server.liveTvUrl, type: 'livetv'),
       ...server.movies.map((c) => (label: c.name, url: c.url, type: 'movie')),
@@ -71,7 +73,9 @@ class ExternalCatalogService {
       final results = await Future.wait(batch.map((s) async {
         try {
           final uri = Uri.parse(s.url);
-          if (uri.scheme != 'https') throw const FormatException('JSON source must use HTTPS');
+          if (uri.scheme != 'https') {
+            throw const FormatException('JSON source must use HTTPS');
+          }
           final response = await _dio.get<dynamic>(s.url);
           final body = response.data is String ? jsonDecode(response.data as String) : response.data;
           return CatalogParser.parse(body, type: s.type, category: s.label, sourceUrl: s.url);
@@ -94,7 +98,9 @@ class ExternalCatalogService {
 
   String _shortError(Object e) {
     if (e is DioException) {
-      if (e.response?.statusCode != null) return 'HTTP ${e.response!.statusCode}';
+      if (e.response?.statusCode != null) {
+        return 'HTTP ${e.response!.statusCode}';
+      }
       return e.message ?? 'network connection failed';
     }
     return e.toString().replaceFirst('FormatException: ', '');
@@ -106,7 +112,9 @@ class CatalogParser {
   static List<MediaItem> parse(dynamic data, {
     required String type, required String category, required String sourceUrl,
   }) {
-    if (type == 'livetv') return _parseLive(data, category, sourceUrl);
+    if (type == 'livetv') {
+      return _parseLive(data, category, sourceUrl);
+    }
     final result = <MediaItem>[];
     if (data is List) {
       for (var i = 0; i < data.length; i++) {
@@ -118,7 +126,9 @@ class CatalogParser {
       }
     } else if (data is Map) {
       final collection = data['movies'] ?? data['series'] ?? data['items'] ?? data['data'];
-      if (collection is List) return parse(collection, type: type, category: category, sourceUrl: sourceUrl);
+      if (collection is List) {
+        return parse(collection, type: type, category: category, sourceUrl: sourceUrl);
+      }
       for (final entry in data.entries) {
         if (entry.value is Map) {
           result.add(_item('${entry.key}', Map<String, dynamic>.from(entry.value as Map),
@@ -146,15 +156,21 @@ class CatalogParser {
         final season = _number(rawLink['season'], defaultValue: 1);
         final episode = _number(rawLink['episode'] ?? rawLink['episode_number'], defaultValue: 1);
         final url = _safeUrl(rawLink['url'] ?? rawLink['videoUrl']);
-        if (url.isEmpty) continue;
+        if (url.isEmpty) {
+          continue;
+        }
         final streams = groups.putIfAbsent(season, () => {}).putIfAbsent(episode, () => []);
-        if (!streams.any((s) => s.url == url)) streams.add(StreamSource(
-          url: url, quality: '${rawLink['quality'] ?? ''}',
-          language: '${rawLink['language'] ?? ''}',
-          label: '${rawLink['episode_title'] ?? rawLink['filename'] ?? ''}',
-        ));
+        if (!streams.any((s) => s.url == url)) {
+          streams.add(StreamSource(
+            url: url, quality: '${rawLink['quality'] ?? ''}',
+            language: '${rawLink['language'] ?? ''}',
+            label: '${rawLink['episode_title'] ?? rawLink['filename'] ?? ''}',
+          ));
+        }
         final epTitle = '${rawLink['episode_name'] ?? ''}'.trim();
-        if (epTitle.isNotEmpty) titles['$season:$episode'] = epTitle;
+        if (epTitle.isNotEmpty) {
+          titles['$season:$episode'] = epTitle;
+        }
       }
       final seasonNums = groups.keys.toList()..sort();
       for (final n in seasonNums) {
@@ -181,7 +197,9 @@ class CatalogParser {
   static List<MediaItem> _parseLive(dynamic data, String category, String sourceUrl) {
     final channels = <MediaItem>[];
     void walk(dynamic node, String inherited, [int depth = 0]) {
-      if (depth > 6 || channels.length >= 5000) return;
+      if (depth > 6 || channels.length >= 5000) {
+        return;
+      }
       if (node is List) {
         for (final item in node) { walk(item, inherited, depth + 1); }
       } else if (node is Map) {
@@ -227,19 +245,25 @@ class CatalogParser {
       for (final link in raw) {
         if (link is String) {
           final url = _streamUrl(link);
-          if (url.isNotEmpty) result.add(StreamSource(url: url));
+          if (url.isNotEmpty) {
+            result.add(StreamSource(url: url));
+          }
         } else if (link is Map) {
           final url = _streamUrl(link['url'] ?? link['stream_url'] ?? link['videoUrl'] ?? link['link']);
-          if (url.isNotEmpty && !result.any((s) => s.url == url)) result.add(StreamSource(
-            url: url, quality: '${link['quality'] ?? ''}', language: '${link['language'] ?? ''}',
-            label: '${link['episode_title'] ?? link['filename'] ?? link['name'] ?? ''}',
-          ));
+          if (url.isNotEmpty && !result.any((s) => s.url == url)) {
+            result.add(StreamSource(
+              url: url, quality: '${link['quality'] ?? ''}', language: '${link['language'] ?? ''}',
+              label: '${link['episode_title'] ?? link['filename'] ?? link['name'] ?? ''}',
+            ));
+          }
         }
       }
     } else if (raw is Map) {
       for (final entry in raw.entries) {
         final url = _streamUrl(entry.value is Map ? (entry.value as Map)['url'] : entry.value);
-        if (url.isNotEmpty) result.add(StreamSource(url: url, label: '${entry.key}'));
+        if (url.isNotEmpty) {
+          result.add(StreamSource(url: url, label: '${entry.key}'));
+        }
       }
     }
     return result;
@@ -253,19 +277,25 @@ class CatalogParser {
 
   static String _streamUrl(dynamic input) {
     final value = _safeUrl(input);
-    if (value.isEmpty) return '';
+    if (value.isEmpty) {
+      return '';
+    }
     final path = Uri.parse(value).path.toLowerCase();
     if (path.endsWith('.html') || path.endsWith('.htm') ||
         path.endsWith('.jpg') || path.endsWith('.jpeg') ||
         path.endsWith('.png') || path.endsWith('.webp') ||
-        path.endsWith('.json') || path.endsWith('/cn/') || path.startsWith('/cn/')) return '';
+        path.endsWith('.json') || path.endsWith('/cn/') || path.startsWith('/cn/')) {
+      return '';
+    }
     return value;
   }
 
   static List<Map<String, dynamic>> _maps(dynamic val) => val is List
       ? val.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : [];
   static int _number(dynamic value, {int defaultValue = 0}) {
-    if (value is num) return value.toInt();
+    if (value is num) {
+      return value.toInt();
+    }
     return int.tryParse('$value') ?? defaultValue;
   }
 

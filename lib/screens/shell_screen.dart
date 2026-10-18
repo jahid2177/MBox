@@ -221,12 +221,16 @@ class _SavedContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    if (!app.loggedIn && !demoMode) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center,
-      children: [const Icon(Icons.bookmark_border, size: 55, color: AppColors.teal),
-        const SizedBox(height: 12), const Text('Sign in to manage My List'),
-        const SizedBox(height: 15), FilledButton(onPressed: onLogin, child: const Text('Sign In'))]));
-    if (app.watchlist.isEmpty) return const Center(child: Text('No saved movies yet.\nTap the + button on a movie.',
-      textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)));
+    if (!app.loggedIn && !demoMode) {
+      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+        children: [const Icon(Icons.bookmark_border, size: 55, color: AppColors.teal),
+          const SizedBox(height: 12), const Text('Sign in to manage My List'),
+          const SizedBox(height: 15), FilledButton(onPressed: onLogin, child: const Text('Sign In'))]));
+    }
+    if (app.watchlist.isEmpty) {
+      return const Center(child: Text('No saved movies yet.\nTap the + button on a movie.',
+        textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)));
+    }
     return CustomScrollView(slivers: [
       const SliverPadding(padding: EdgeInsets.all(20), sliver: SliverToBoxAdapter(child:
         Text('My List', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)))),

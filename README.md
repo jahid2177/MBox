@@ -26,6 +26,8 @@ The source project has ~40 Next.js API handlers and much broader web Admin CMS c
 - A **running compatible MyStreamFlix Next.js backend**, accessible via HTTPS for real authentication, favorites, CRUD and streams.
 - The archive includes **Flutter Dart sources and bootstrap scripts** rather than generated native `android/`, `ios/`, and `windows/` folders. This environment does not include the Flutter SDK; platform templates need to be generated once by Flutter using the setup command below.
 
+> **2026-10-18 CI fix:** The incompatible generated `MyApp` widget test has been replaced with `test/widget_test.dart`, and related analyzer findings were addressed. See [`docs/BUILD_LOG_FIX_2026-10-18.md`](docs/BUILD_LOG_FIX_2026-10-18.md). The amended code still requires a fresh CI build to verify native compilation.
+
 ## First-time setup (Windows)
 
 ```powershell

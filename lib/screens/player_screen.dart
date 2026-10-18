@@ -7,7 +7,6 @@ import '../main.dart';
 import '../models/media_item.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
-import '../widgets/media_widgets.dart';
 
 class PlayerScreen extends StatefulWidget {
   final MediaItem movie;
@@ -40,19 +39,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void initState() {
     super.initState();
     player.open(Media(widget.streamUrl)).catchError((Object error) {
-      if (mounted) setState(() => playbackError = error.toString());
+      if (mounted) {
+      setState(() => playbackError = error.toString());
+    }
     });
     progressSub = player.stream.position.listen((value) {
       currentPosition = value;
       duration = player.state.duration;
-      if (mounted) setState(() {});
+      if (mounted) {
+      setState(() {});
+    }
       if (value.inSeconds - lastHistorySecond >= 30) {
         lastHistorySecond = value.inSeconds;
         _writeHistory();
       }
     });
     errorSub = player.stream.error.listen((error) {
-      if (mounted) setState(() => playbackError = error);
+      if (mounted) {
+      setState(() => playbackError = error);
+    }
     });
   }
 
@@ -72,7 +77,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
       await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
-    if (mounted) setState(() => landscape = !landscape);
+    if (mounted) {
+      setState(() => landscape = !landscape);
+    }
   }
 
   @override

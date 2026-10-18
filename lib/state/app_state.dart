@@ -50,7 +50,9 @@ class AppState extends ChangeNotifier {
         final data = jsonDecode(await rootBundle.loadString('assets/demo/catalog.json')) as List;
         catalog = data.whereType<Map>().map((m) => MediaItem.fromJson(Map<String, dynamic>.from(m))).toList();
       } else {
-        if (api == null) throw Exception('Backend client is not initialized.');
+        if (api == null) {
+          throw Exception('Backend client is not initialized.');
+        }
         catalog = await api!.catalog();
       }
     } catch (e) {
@@ -62,7 +64,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> login(String email, String password) async {
-    if (demoMode) throw Exception('Login requires a running backend. Disable DEMO_MODE.');
+    if (demoMode) {
+      throw Exception('Login requires a running backend. Disable DEMO_MODE.');
+    }
     user = await api!.login(email, password);
     favoriteIds = (await api!.favorites()).toSet();
     await _saveFavorites();
@@ -70,7 +74,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> register(String name, String email, String password) async {
-    if (demoMode) throw Exception('Register requires a running backend. Disable DEMO_MODE.');
+    if (demoMode) {
+      throw Exception('Register requires a running backend. Disable DEMO_MODE.');
+    }
     user = await api!.register(name, email, password);
     favoriteIds = {};
     await _saveFavorites();
@@ -88,7 +94,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> toggleFavorite(MediaItem movie) async {
-    if (user == null && !demoMode) throw Exception('Please sign in to save your list.');
+    if (user == null && !demoMode) {
+      throw Exception('Please sign in to save your list.');
+    }
     final alreadySaved = favoriteIds.contains(movie.id);
     if (!demoMode) {
       if (alreadySaved) { await api!.removeFavorite(movie.id); }
@@ -106,13 +114,17 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> switchProfile(String id) async {
-    if (user == null || demoMode) return;
+    if (user == null || demoMode) {
+      return;
+    }
     user = await api!.switchProfile(id);
     notifyListeners();
   }
 
   Future<void> addProfile(String name, {bool isKids = false}) async {
-    if (user == null || demoMode) return;
+    if (user == null || demoMode) {
+      return;
+    }
     user = await api!.addProfile(name, isKids: isKids);
     notifyListeners();
   }

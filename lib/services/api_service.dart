@@ -56,7 +56,9 @@ class ApiService {
   Future<List<MediaItem>> catalog() async {
     final data = await _get('/api/movies');
     final list = data is List ? data : (data is Map ? data['movies'] : null);
-    if (list is! List) throw const FormatException('Expected movie array from server');
+    if (list is! List) {
+      throw const FormatException('Expected movie array from server');
+    }
     return list.whereType<Map>().map((m) => MediaItem.fromJson(Map<String, dynamic>.from(m))).toList();
   }
 
@@ -71,7 +73,9 @@ class ApiService {
 
   Future<AppUser> login(String email, String password) async {
     final data = await _send('POST', '/api/auth/login', {'email': email.trim().toLowerCase(), 'password': password});
-    if (data is! Map || data['success'] != true || data['user'] is! Map) throw Exception('Login was not accepted.');
+    if (data is! Map || data['success'] != true || data['user'] is! Map) {
+      throw Exception('Login was not accepted.');
+    }
     return AppUser.fromJson(Map<String, dynamic>.from(data['user'] as Map));
   }
 
@@ -79,7 +83,9 @@ class ApiService {
     final data = await _send('POST', '/api/auth/register', {
       'name': name.trim(), 'email': email.trim().toLowerCase(), 'password': password,
     });
-    if (data is! Map || data['user'] is! Map) throw Exception('Registration failed.');
+    if (data is! Map || data['user'] is! Map) {
+      throw Exception('Registration failed.');
+    }
     return AppUser.fromJson(Map<String, dynamic>.from(data['user'] as Map));
   }
 
@@ -92,7 +98,9 @@ class ApiService {
     final data = await _get('/api/user/favorites');
     // Backend getFavorites may return IDs or media objects.
     final list = data is Map ? data['favorites'] : data;
-    if (list is! List) return [];
+    if (list is! List) {
+      return [];
+    }
     return list.map((it) => it is Map ? '${it['movieId'] ?? it['id'] ?? ''}' : '$it')
         .where((id) => id.isNotEmpty).toList();
   }
@@ -120,7 +128,9 @@ class ApiService {
   Future<List<AppUser>> users() async {
     final result = await _get('/api/users');
     final list = result is List ? result : (result is Map ? result['users'] : null);
-    if (list is! List) return [];
+    if (list is! List) {
+      return [];
+    }
     return list.whereType<Map>().map((m) => AppUser.fromJson(Map<String, dynamic>.from(m))).toList();
   }
   Future<AppUser> setRole(String id, String role) async {

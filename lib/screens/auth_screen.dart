@@ -23,7 +23,9 @@ class _AuthScreenState extends State<AuthScreen> {
   void dispose() { name.dispose(); email.dispose(); password.dispose(); super.dispose(); }
 
   Future<void> submit() async {
-    if (!(formKey.currentState?.validate() ?? false)) return;
+    if (!(formKey.currentState?.validate() ?? false)) {
+      return;
+    }
     setState(() => busy = true);
     try {
       final app = AppScope.of(context);

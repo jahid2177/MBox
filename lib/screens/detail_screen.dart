@@ -15,9 +15,13 @@ class DetailScreen extends StatelessWidget {
     final app = AppScope.of(context);
     if (!app.loggedIn && !demoMode) {
       await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen()));
-      if (!context.mounted || !app.loggedIn) return;
+      if (!context.mounted || !app.loggedIn) {
+      return;
     }
-    if (!context.mounted) return;
+    }
+    if (!context.mounted) {
+      return;
+    }
     if (movie.tier == 'vip' && app.user?.isPremium != true && !demoMode) {
       showErrorSnack(context, 'VIP content requires an active premium subscription.');
       return;
@@ -67,7 +71,9 @@ class DetailScreen extends StatelessWidget {
               OutlinedButton.icon(onPressed: () async {
                 if (!app.loggedIn && !demoMode) {
                   await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen()));
-                  if (!context.mounted || !app.loggedIn) return;
+                  if (!context.mounted || !app.loggedIn) {
+      return;
+    }
                 }
                 try { await app.toggleFavorite(movie); }
                 catch (e) { if (context.mounted) showErrorSnack(context, e); }

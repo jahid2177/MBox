@@ -28,7 +28,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _loadUsers() async {
     final app = AppScope.of(context);
-    if (!app.isAdmin) return;
+    if (!app.isAdmin) {
+      return;
+    }
     setState(() => busy = true);
     try { final data = await app.api!.users(); if (mounted) setState(() => accounts = data); }
     catch (e) { if (mounted) showErrorSnack(context, e); }
@@ -42,9 +44,18 @@ class _AdminScreenState extends State<AdminScreen> {
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete'))],
     ));
-    if (ok != true || !mounted) return;
-    try { await AppScope.of(context).api!.deleteContent(movie.id); await AppScope.of(context).refresh(); }
-    catch (e) { if (mounted) showErrorSnack(context, e); }
+    if (ok != true || !mounted) {
+      return;
+    }
+    final app = AppScope.of(context);
+    try {
+      await app.api!.deleteContent(movie.id);
+      await app.refresh();
+    } catch (e) {
+      if (mounted) {
+        showErrorSnack(context, e);
+      }
+    }
   }
 
   Future<void> _contentEditor({MediaItem? item}) async {
@@ -54,6 +65,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final backdrop = TextEditingController(text: item?.backdropUrl ?? '');
     final description = TextEditingController(text: item?.description ?? '');
     final genres = TextEditingController(text: item?.genres.join(', ') ?? 'Action');
+    final app = AppScope.of(context);
     String contentType = item?.contentType ?? (tab == 1 ? 'livetv' : 'movie');
     bool saving = false;
     try {
@@ -91,14 +103,18 @@ class _AdminScreenState extends State<AdminScreen> {
                 'rating': item?.rating ?? 0, 'quality': item?.quality ?? 'HD',
               };
               try {
-                final api = AppScope.of(ctx).api!;
+                final api = app.api!;
                 if (item == null) { await api.addContent(data); }
                 else { await api.updateContent(item.id, data); }
-                if (ctx.mounted) Navigator.pop(dialogContext);
-                if (mounted) await AppScope.of(context).refresh();
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+                await app.refresh();
               } catch (e) {
-                if (ctx.mounted) showErrorSnack(ctx, e);
-                update(() => saving = false);
+                if (ctx.mounted) {
+                  showErrorSnack(ctx, e);
+                  update(() => saving = false);
+                }
               }
             }, child: Text(saving ? 'Saving...' : 'Save'))],
         );
@@ -114,18 +130,24 @@ class _AdminScreenState extends State<AdminScreen> {
     }
     try {
       await AppScope.of(context).api!.setRole(user.id, user.isAdmin ? 'user' : 'admin');
-      if (mounted) await _loadUsers();
+      if (mounted) {
+        await _loadUsers();
+      }
     } catch (e) { if (mounted) showErrorSnack(context, e); }
   }
 
   Future<void> _deleteUser(AppUser user) async {
-    if (user.id == AppScope.of(context).user?.id) return;
+    if (user.id == AppScope.of(context).user?.id) {
+      return;
+    }
     final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('Delete account?'), content: Text('Permanently delete ${user.email}?'),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete'))],
     ));
-    if (ok != true || !mounted) return;
+    if (ok != true || !mounted) {
+      return;
+    }
     try { await AppScope.of(context).api!.deleteUser(user.id); if (mounted) await _loadUsers(); }
     catch (e) { if (mounted) showErrorSnack(context, e); }
   }
@@ -133,7 +155,9 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    if (!app.isAdmin) return Scaffold(appBar: AppBar(), body: const Center(child: Text('Administrator access required.')));
+    if (!app.isAdmin) {
+      return Scaffold(appBar: AppBar(), body: const Center(child: Text('Administrator access required.')));
+    }
     final types = [app.videos, app.liveChannels];
     final filtered = tab == 2 ? <MediaItem>[] : types[tab].where((m) => m.title.toLowerCase().contains(query.toLowerCase())).toList();
     return Scaffold(
@@ -170,7 +194,14 @@ class _AdminScreenState extends State<AdminScreen> {
                   title: Text(u.name), subtitle: Text(u.email),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                     Text(u.role, style: const TextStyle(color: AppColors.teal)),
-                    PopupMenuButton<String>(onSelected: (v) { if (v == 'role') _changeRole(u); if (v == 'delete') _deleteUser(u); },
+                    PopupMenuButton<String>(onSelected: (v) {
+                      if (v == 'role') {
+                        _changeRole(u);
+                      }
+                      if (v == 'delete') {
+                        _deleteUser(u);
+                      }
+                    },
                       itemBuilder: (_) => [const PopupMenuItem(value: 'role', child: Text('Toggle Admin / User')),
                         if (u.id != app.user?.id) const PopupMenuItem(value: 'delete', child: Text('Delete account'))]),
                   ]));

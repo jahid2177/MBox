@@ -20,10 +20,14 @@ class ProfileScreen extends StatelessWidget {
       ]),
       actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
         FilledButton(onPressed: () async {
-          if (input.text.trim().isEmpty) return;
+          if (input.text.trim().isEmpty) {
+            return;
+          }
           try {
             await AppScope.of(context).addProfile(input.text.trim(), isKids: kids);
-            if (dialogContext.mounted) Navigator.pop(dialogContext);
+            if (dialogContext.mounted) {
+              Navigator.pop(dialogContext);
+            }
           } catch (e) { if (context.mounted) showErrorSnack(context, e); }
         }, child: const Text('Create'))],
     )));
@@ -34,7 +38,9 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final user = app.user;
-    if (user == null) return Scaffold(appBar: AppBar(), body: const Center(child: Text('Not signed in')));
+    if (user == null) {
+      return Scaffold(appBar: AppBar(), body: const Center(child: Text('Not signed in')));
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Account & Profiles')),
       body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 650),

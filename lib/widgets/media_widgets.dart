@@ -72,7 +72,9 @@ class MediaRow extends StatelessWidget {
   const MediaRow({super.key, required this.title, required this.items, required this.onTap, this.icon = Icons.movie});
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (items.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final wide = MediaQuery.sizeOf(context).width > 700;
     return Padding(
       padding: const EdgeInsets.only(top: 18, bottom: 8),
@@ -96,8 +98,10 @@ class MediaRow extends StatelessWidget {
 }
 
 void showErrorSnack(BuildContext context, Object error) {
-  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-    content: Text(error.toString().replaceFirst('Exception: ', '')),
-    backgroundColor: const Color(0xFF9C2936),
-  ));
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(error.toString().replaceFirst('Exception: ', '')),
+      backgroundColor: const Color(0xFF9C2936),
+    ));
+  }
 }

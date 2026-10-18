@@ -24,14 +24,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Watch History')),
     body: FutureBuilder<List<dynamic>>(future: historyFuture, builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-      if (snapshot.hasError) return Center(child: Text('Could not load watch history: ${snapshot.error}'));
+      if (snapshot.connectionState != ConnectionState.done) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.hasError) {
+        return Center(child: Text('Could not load watch history: ${snapshot.error}'));
+      }
       final items = snapshot.data ?? [];
-      if (items.isEmpty) return const Center(child: Text('Your watch history is empty.',
-        style: TextStyle(color: AppColors.muted)));
+      if (items.isEmpty) {
+        return const Center(child: Text('Your watch history is empty.',
+          style: TextStyle(color: AppColors.muted)));
+      }
       return ListView.builder(itemCount: items.length, itemBuilder: (context, index) {
         final entry = items[index];
-        if (entry is! Map || entry['movie'] is! Map) return const SizedBox.shrink();
+        if (entry is! Map || entry['movie'] is! Map) {
+          return const SizedBox.shrink();
+        }
         final movie = MediaItem.fromJson(Map<String, dynamic>.from(entry['movie'] as Map));
         final duration = (entry['duration'] as num?)?.toDouble() ?? 0;
         final progress = (entry['progress'] as num?)?.toDouble() ?? 0;

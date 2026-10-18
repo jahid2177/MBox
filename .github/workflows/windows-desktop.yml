@@ -1,0 +1,42 @@
+name: MyStreamFlix Flutter Windows Desktop
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'test/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/windows-desktop.yml'
+      - 'scripts/**'
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Enable desktop
+        shell: pwsh
+        run: flutter config --enable-windows-desktop
+      - name: Generate native Flutter platforms
+        shell: pwsh
+        run: flutter create --project-name mystreamflix_flutter --org com.mystreamflix --platforms=android,ios,windows .
+      - name: Install dependencies
+        run: flutter pub get
+      - run: dart format lib test
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+      - name: Build Windows release
+        shell: pwsh
+        run: flutter build windows --release --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://mystreamflix.biz.id' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyStreamFlix-Flutter-Windows-Desktop
+          path: build/windows/x64/runner/Release/**
+          if-no-files-found: error

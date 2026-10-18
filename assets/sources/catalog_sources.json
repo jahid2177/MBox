@@ -1,0 +1,94 @@
+{
+  "servers": [
+    {
+      "name": "Server 1",
+      "api_config": {
+        "live_tv_url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/LiveTV/live_tv.json",
+        "maintenance": false,
+        "movie_categories": [
+          {
+            "name": "Hollywood",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hollywood.json"
+          },
+          {
+            "name": "Bollywood",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hindi.json"
+          },
+          {
+            "name": "Indian Bangla",
+            "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Indian_Bangla.json"
+          }
+        ],
+        "series_categories": [
+          {
+            "name": "English Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/English_Tv_Series.json"
+          },
+          {
+            "name": "Korean Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/Korean_Tv_Series.json"
+          },
+          {
+            "name": "Hindi Tv Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/Indian_Tv_Series.json"
+          },
+          {
+            "name": "Bangla Tv Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/Bangla_Tv_Series.json"
+          },
+          {
+            "name": "Turkish Tv Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/Turkish_Tv_Series.json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Server 2",
+      "api_config": {
+        "live_tv_url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/live_tv.json",
+        "maintenance": false,
+        "movie_categories": [
+          {
+            "name": "Hollywood",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/CTGMovies/Movie/English.json"
+          },
+          {
+            "name": "Bollywood",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/CTGMovies/Movie/hindi.json"
+          },
+          {
+            "name": "Hindi Dubbed",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/CTGMovies/Movie/Hindi_Dubbed.json"
+          },
+          {
+            "name": "Indian Bangla",
+            "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Indian_Bangla.json"
+          },
+          {
+            "name": "Korean",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/CTGMovies/Movie/foreign_Movie.json"
+          },
+          {
+            "name": "Animation",
+            "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Animation.json"
+          }
+        ],
+        "series_categories": [
+          {
+            "name": "English Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/CTGMovies/series/English_Series.json"
+          },
+          {
+            "name": "Hindi Dubbed Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/CTGMovies/series/Foreigh_Series.json"
+          },
+          {
+            "name": "Hindi Tv Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/CTGMovies/series/Hindi_Series.json"
+          }
+        ]
+      }
+    }
+  ]
+}

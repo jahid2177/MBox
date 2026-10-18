@@ -74,13 +74,13 @@ class _AuthScreenState extends State<AuthScreen> {
             validator: (value) => (value ?? '').length < 6 ? 'At least 6 characters required' : null,
             onFieldSubmitted: (_) => submit()),
           const SizedBox(height: 22),
-          FilledButton(onPressed: busy || demoMode ? null : submit,
+          FilledButton(onPressed: busy || !accountsEnabled ? null : submit,
             style: FilledButton.styleFrom(backgroundColor: AppColors.teal, foregroundColor: Colors.black,
               padding: const EdgeInsets.all(15)),
             child: busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
               : Text(register ? 'Create Account' : 'Sign In', style: const TextStyle(fontWeight: FontWeight.bold))),
-          if (demoMode) const Padding(padding: EdgeInsets.only(top: 14), child:
-            Text('Login is disabled in demo mode. Connect to a backend to enable accounts.',
+          if (!accountsEnabled) const Padding(padding: EdgeInsets.only(top: 14), child:
+            Text('Account login needs an optional backend (ENABLE_ACCOUNTS=true).',
               textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted))),
           const SizedBox(height: 9),
           TextButton(onPressed: () => setState(() => register = !register),

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/media_item.dart';
-import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/media_widgets.dart';
-import 'auth_screen.dart';
 import 'player_screen.dart';
 
 class DetailScreen extends StatelessWidget {
@@ -12,24 +10,32 @@ class DetailScreen extends StatelessWidget {
   const DetailScreen({super.key, required this.movie});
 
   Future<void> _play(BuildContext context, {Episode? episode}) async {
-    final app = AppScope.of(context);
-    if (!app.loggedIn && !demoMode) {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen()));
-      if (!context.mounted || !app.loggedIn) {
+    final sources = episode == null ? movie.streams : episode.sources;
+    String url = episode?.videoUrl ?? movie.primaryStream;
+    if (sources.length > 1) {
+      final selected = await showModalBottomSheet<StreamSource>(context: context,
+        isScrollControlled: true, builder: (sheetContext) => SafeArea(child: Padding(
+          padding: const EdgeInsets.all(16), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Select video source', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          SizedBox(height: (sources.length * 72.0).clamp(72.0, MediaQuery.sizeOf(sheetContext).height * 0.55).toDouble(),
+            child: ListView(shrinkWrap: true, children: sources.asMap().entries.map((e) => ListTile(
+            leading: const Icon(Icons.play_circle_outline),
+            title: Text(e.value.displayName),
+            subtitle: Text(Uri.parse(e.value.url).host),
+            onTap: () => Navigator.pop(sheetContext, e.value),
+          )).toList())),
+        ]))));
+      if (selected == null) return;
+      url = selected.url;
+    }
+    if (!context.mounted) return;
+    if (url.trim().isEmpty) {
+      showErrorSnack(context, 'No playable stream URL available for this item.');
       return;
     }
-    }
-    if (!context.mounted) {
-      return;
-    }
-    if (movie.tier == 'vip' && app.user?.isPremium != true && !demoMode) {
-      showErrorSnack(context, 'VIP content requires an active premium subscription.');
-      return;
-    }
-    final url = episode?.videoUrl ?? movie.primaryStream;
-    if (url.isEmpty) { showErrorSnack(context, 'No stream URL configured for this title.'); return; }
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => PlayerScreen(movie: movie,
-      streamUrl: url, episode: episode)));
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => PlayerScreen(
+      movie: movie, streamUrl: url, episode: episode)));
   }
 
   @override
@@ -69,13 +75,7 @@ class DetailScreen extends StatelessWidget {
                 style: FilledButton.styleFrom(backgroundColor: AppColors.teal, foregroundColor: Colors.black)),
               const SizedBox(width: 10),
               OutlinedButton.icon(onPressed: () async {
-                if (!app.loggedIn && !demoMode) {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen()));
-                  if (!context.mounted || !app.loggedIn) {
-      return;
-    }
-                }
-                try { await app.toggleFavorite(movie); }
+                                try { await app.toggleFavorite(movie); }
                 catch (e) { if (context.mounted) showErrorSnack(context, e); }
               }, icon: Icon(app.favoriteIds.contains(movie.id) ? Icons.check : Icons.add),
                 label: Text(app.favoriteIds.contains(movie.id) ? 'In My List' : 'My List')),
@@ -95,7 +95,7 @@ class DetailScreen extends StatelessWidget {
                 for (final episode in season.episodes)
                   ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.play_circle_outline, size: 34),
                     title: Text('${episode.number}. ${episode.title}'),
-                    subtitle: Text('${episode.duration} min'),
+                    subtitle: Text('${episode.sources.length} source(s) · ${episode.duration > 0 ? '${episode.duration} min' : 'Video'}'),
                     enabled: episode.videoUrl.isNotEmpty,
                     onTap: () => _play(context, episode: episode)),
               ],

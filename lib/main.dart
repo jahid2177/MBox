@@ -12,7 +12,7 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
   ApiService? service;
   String? initError;
-  if (!demoMode) {
+  if (accountsEnabled) {
     try { service = await ApiService.create(); }
     catch (e) { initError = e.toString(); }
   }

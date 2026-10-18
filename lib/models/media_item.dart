@@ -1,16 +1,30 @@
+class StreamSource {
+  final String url;
+  final String quality;
+  final String language;
+  final String label;
+  const StreamSource({required this.url, this.quality = '', this.language = '', this.label = ''});
+  String get displayName => [quality, language, label]
+    .where((part) => part.trim().isNotEmpty).join(' · ').trim().isEmpty
+      ? Uri.tryParse(url)?.host ?? 'Stream'
+      : [quality, language, label].where((part) => part.trim().isNotEmpty).join(' · ');
+}
+
 class Episode {
   final String id;
   final String title;
   final String videoUrl;
   final int number;
   final int duration;
-  const Episode({required this.id, required this.title, required this.videoUrl, required this.number, required this.duration});
+  final List<StreamSource> sources;
+  const Episode({required this.id, required this.title, required this.videoUrl, required this.number, required this.duration, this.sources = const []});
   factory Episode.fromJson(Map<String, dynamic> json) => Episode(
         id: '${json['id'] ?? ''}',
         title: '${json['title'] ?? ''}',
         videoUrl: '${json['videoUrl'] ?? ''}',
         number: _int(json['episodeNumber']),
         duration: _int(json['duration']),
+        sources: const [],
       );
 }
 
@@ -43,6 +57,7 @@ class MediaItem {
   final String posterUrl;
   final String backdropUrl;
   final String videoUrl;
+  final List<StreamSource> streams;
   final String contentType;
   final int releaseYear;
   final int duration;
@@ -57,7 +72,7 @@ class MediaItem {
 
   const MediaItem({
     required this.id, required this.title, this.description = '', this.posterUrl = '',
-    this.backdropUrl = '', this.videoUrl = '', this.contentType = 'movie',
+    this.backdropUrl = '', this.videoUrl = '', this.streams = const [], this.contentType = 'movie',
     this.releaseYear = 0, this.duration = 0, this.rating = 0, this.quality = '',
     this.tier = 'free', this.genres = const [], this.cast = const [],
     this.seasons = const [], this.subtitles = const [], this.isFeatured = false,
@@ -65,8 +80,8 @@ class MediaItem {
 
   bool get isLive => contentType == 'livetv' || id.startsWith('tv-');
   bool get isSeries => contentType == 'series';
-  bool get hasStream => videoUrl.trim().isNotEmpty || seasons.any((s) => s.episodes.any((e) => e.videoUrl.trim().isNotEmpty));
-  String get primaryStream => videoUrl.trim().isNotEmpty ? videoUrl :
+  bool get hasStream => streams.isNotEmpty || videoUrl.trim().isNotEmpty || seasons.any((s) => s.episodes.any((e) => e.videoUrl.trim().isNotEmpty));
+  String get primaryStream => streams.isNotEmpty ? streams.first.url : videoUrl.trim().isNotEmpty ? videoUrl :
       seasons.expand((s) => s.episodes).where((e) => e.videoUrl.trim().isNotEmpty).map((e) => e.videoUrl).firstOrNull ?? '';
 
   factory MediaItem.fromJson(Map<String, dynamic> json) => MediaItem(

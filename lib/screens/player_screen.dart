@@ -62,7 +62,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _writeHistory() {
-    if (!demoMode && _app.loggedIn && !widget.movie.isLive) {
+    if (accountsEnabled && _app.api != null && _app.loggedIn && !widget.movie.isLive) {
       _app.api?.saveHistory(widget.movie.id, currentPosition, duration).catchError((Object _) {});
     }
   }

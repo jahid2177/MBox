@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/media_item.dart';
-import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/media_widgets.dart';
 
@@ -16,10 +15,11 @@ class LiveScreen extends StatefulWidget {
 class _LiveScreenState extends State<LiveScreen> {
   String search = '';
   String category = 'All';
-  static const categories = ['All', 'Nasional', 'News', 'Sports', 'Entertainment', 'Kids', 'Music', 'Documentary'];
+  // Category values come from the supplied JSON, not demo data.
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
+    final categories = ['All', ...{for (final c in app.liveChannels) ...c.genres}];
     final channels = app.liveChannels.where((m) =>
       m.title.toLowerCase().contains(search.toLowerCase()) &&
       (category == 'All' || m.genres.any((g) => g.toLowerCase() == category.toLowerCase()))).toList();
@@ -43,7 +43,7 @@ class _LiveScreenState extends State<LiveScreen> {
         ]))),
       if (app.loading && channels.isEmpty) const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
       else if (channels.isEmpty) const SliverFillRemaining(child: Center(child: Padding(
-        padding: EdgeInsets.all(22), child: Text('No Live TV channels found.', textAlign: TextAlign.center))))
+        padding: EdgeInsets.all(22), child: Column(mainAxisSize: MainAxisSize.min, children: [Text(app.error ?? (app.warnings.isEmpty ? 'No Live TV channels found in the selected server.' : 'Live TV feed unavailable: ${app.warnings.first}'), textAlign: TextAlign.center), const SizedBox(height: 12), FilledButton(onPressed: app.refresh, child: const Text('Retry'))]))))
       else SliverPadding(padding: const EdgeInsets.all(16), sliver:
         SliverLayoutBuilder(builder: (context, constraints) {
           final cols = (constraints.crossAxisExtent / 210).floor().clamp(2, 6).toInt();
@@ -54,7 +54,6 @@ class _LiveScreenState extends State<LiveScreen> {
             itemBuilder: (_, i) {
               final m = channels[i];
               return InkWell(onTap: () {
-                if (!app.loggedIn && !demoMode) { widget.onLogin(); return; }
                 widget.onSelect(m);
               }, child: Card(clipBehavior: Clip.antiAlias, child: Stack(fit: StackFit.expand, children: [
                 ArtImage(url: m.posterUrl, icon: Icons.live_tv, fit: BoxFit.contain),

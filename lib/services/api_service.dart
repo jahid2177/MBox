@@ -7,7 +7,7 @@ import '../models/app_user.dart';
 import '../models/media_item.dart';
 
 const defaultBackendUrl = String.fromEnvironment(
-  'API_BASE_URL', defaultValue: 'https://mystreamflix.biz.id',
+  'API_BASE_URL', defaultValue: '',
 );
 
 class ApiService {

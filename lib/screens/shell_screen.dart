@@ -20,6 +20,7 @@ class _ShellScreenState extends State<ShellScreen> {
   int tab = 0;
   String search = '';
   String genre = 'All';
+  int visibleLimit = 120;
   bool searchOpen = false;
   final searchController = TextEditingController();
 
@@ -48,7 +49,9 @@ class _ShellScreenState extends State<ShellScreen> {
       3 => LiveScreen(onSelect: openDetail, onLogin: showLogin),
       4 => _SavedContent(onSelect: openDetail, onLogin: showLogin),
       _ => _CatalogContent(tab: tab, search: search, genre: genre,
-          onGenre: (value) => setState(() => genre = value), onSelect: openDetail),
+          onGenre: (value) => setState(() { genre = value; visibleLimit = 120; }),
+          visibleLimit: visibleLimit, onMore: () => setState(() => visibleLimit += 120),
+          onSelect: openDetail),
     };
 
     return Scaffold(
@@ -57,7 +60,7 @@ class _ShellScreenState extends State<ShellScreen> {
         titleSpacing: 16,
         title: searchOpen ? TextField(
           autofocus: true, controller: searchController,
-          onChanged: (value) => setState(() => search = value),
+          onChanged: (value) => setState(() { search = value; visibleLimit = 120; }),
           decoration: const InputDecoration(hintText: 'Search movies and TV shows', prefixIcon: Icon(Icons.search), isDense: true),
         ) : Row(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.play_circle_fill_rounded, color: AppColors.teal, size: 29),
@@ -69,9 +72,19 @@ class _ShellScreenState extends State<ShellScreen> {
           IconButton(tooltip: searchOpen ? 'Close search' : 'Search',
             onPressed: () => setState(() { searchOpen = !searchOpen; if (!searchOpen) { search = ''; searchController.clear(); } }),
             icon: Icon(searchOpen ? Icons.close : Icons.search_rounded)),
+          if (app.servers.isNotEmpty) PopupMenuButton<int>(
+            tooltip: 'Select content server',
+            onSelected: (value) { setState(() { genre = 'All'; visibleLimit = 120; }); app.setServer(value); },
+            itemBuilder: (_) => List.generate(app.servers.length, (i) => PopupMenuItem(
+              value: i, child: Row(children: [if (i == app.serverIndex) const Icon(Icons.check, size: 18, color: AppColors.teal),
+              const SizedBox(width: 5), Text(app.servers[i].name)]))),
+            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 7), child: Row(
+              mainAxisSize: MainAxisSize.min, children: [Text(app.currentServer, style: const TextStyle(fontSize: 12)),
+                const Icon(Icons.arrow_drop_down)])),
+          ),
           if (app.isAdmin) IconButton(tooltip: 'Admin CMS', onPressed: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => const AdminScreen())), icon: const Icon(Icons.admin_panel_settings, color: AppColors.teal)),
-          Padding(padding: const EdgeInsets.only(right: 8), child: IconButton(
+          if (accountsEnabled) Padding(padding: const EdgeInsets.only(right: 8), child: IconButton(
             onPressed: app.loggedIn ? openProfile : showLogin,
             tooltip: app.loggedIn ? 'Profile' : 'Sign in',
             icon: CircleAvatar(radius: 16, backgroundColor: AppColors.surface,
@@ -81,7 +94,7 @@ class _ShellScreenState extends State<ShellScreen> {
       ),
       body: Row(children: [
         if (wide) NavigationRail(
-          selectedIndex: tab, onDestinationSelected: (v) => setState(() { tab = v; genre = 'All'; }),
+          selectedIndex: tab, onDestinationSelected: (v) => setState(() { tab = v; genre = 'All'; visibleLimit = 120; }),
           labelType: NavigationRailLabelType.all,
           backgroundColor: AppColors.bg, indicatorColor: AppColors.teal.withValues(alpha: .16),
           destinations: List.generate(5, (i) => NavigationRailDestination(icon: Icon(icons[i]),
@@ -93,7 +106,7 @@ class _ShellScreenState extends State<ShellScreen> {
         backgroundColor: const Color(0xFF101017),
         height: 69, labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         indicatorColor: AppColors.teal.withValues(alpha: .19),
-        selectedIndex: tab, onDestinationSelected: (v) => setState(() { tab = v; genre = 'All'; }),
+        selectedIndex: tab, onDestinationSelected: (v) => setState(() { tab = v; genre = 'All'; visibleLimit = 120; }),
         destinations: List.generate(5, (i) => NavigationDestination(
             icon: Icon(icons[i], size: 22), selectedIcon: Icon(icons[i], color: AppColors.teal),
             label: labels[i], tooltip: labels[i])),
@@ -106,10 +119,12 @@ class _CatalogContent extends StatelessWidget {
   final int tab;
   final String search;
   final String genre;
+  final int visibleLimit;
+  final VoidCallback onMore;
   final ValueChanged<String> onGenre;
   final ValueChanged<MediaItem> onSelect;
   const _CatalogContent({required this.tab, required this.search, required this.genre,
-    required this.onGenre, required this.onSelect});
+    required this.onGenre, required this.visibleLimit, required this.onMore, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -133,17 +148,19 @@ class _CatalogContent extends StatelessWidget {
               Text(app.error!, textAlign: TextAlign.center), const SizedBox(height: 12),
               FilledButton(onPressed: app.refresh, child: const Text('Retry'))]))))
         else ...[
+          if (app.warnings.isNotEmpty) SliverToBoxAdapter(child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            child: Text('${app.currentServer}: ${app.warnings.length} category feeds unavailable. Pull to retry.',
+              style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)))),
           if (!hasFilter && catalog.isNotEmpty) SliverToBoxAdapter(
             child: _HeroBanner(movie: catalog.firstWhere((m) => m.isFeatured, orElse: () => catalog.first), onTap: onSelect)),
           SliverToBoxAdapter(child: SizedBox(height: 58, child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            itemCount: const ['All', 'Action', 'Adventure', 'Comedy', 'Drama', 'Sci-Fi', 'Horror',
-              'Animation', 'Romance', 'Thriller', 'Documentary'].length,
+            itemCount: ['All', ...{for (final m in catalog) ...m.genres}].length,
             separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
-              const genres = ['All', 'Action', 'Adventure', 'Comedy', 'Drama', 'Sci-Fi', 'Horror',
-                'Animation', 'Romance', 'Thriller', 'Documentary'];
+              final genres = ['All', ...{for (final m in catalog) ...m.genres}];
               final active = genre == genres[i];
               return ChoiceChip(label: Text(genres[i]), selected: active,
                 showCheckmark: false, onSelected: (_) => onGenre(genres[i]),
@@ -155,17 +172,20 @@ class _CatalogContent extends StatelessWidget {
           if (hasFilter) SliverPadding(padding: const EdgeInsets.all(18), sliver: SliverList(delegate: SliverChildListDelegate([
             Text('Explore  ·  ${selection.length} titles', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
             const SizedBox(height: 18),
-            if (selection.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(50),
+                        if (selection.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(50),
               child: Text('No matching titles found', style: TextStyle(color: AppColors.muted))))
             else LayoutBuilder(builder: (context, constraints) {
               final cols = (constraints.maxWidth / 155).floor().clamp(2, 7).toInt();
               return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                itemCount: selection.length,
+                itemCount: selection.length.clamp(0, visibleLimit).toInt(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols,
                   childAspectRatio: .55, mainAxisSpacing: 15, crossAxisSpacing: 12),
                 itemBuilder: (_, i) => MediaPoster(item: selection[i], onTap: () => onSelect(selection[i]),
                   width: double.infinity));
             }),
+            if (selection.length > visibleLimit) Padding(padding: const EdgeInsets.symmetric(vertical: 20),
+              child: OutlinedButton(onPressed: onMore,
+                child: Text('Load more (${selection.length - visibleLimit} remaining)'))),
           ])))
           else SliverList(delegate: SliverChildListDelegate([
             MediaRow(title: 'Trending Now', items: catalog.take(12).toList(), icon: Icons.local_fire_department, onTap: onSelect),
@@ -221,13 +241,7 @@ class _SavedContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    if (!app.loggedIn && !demoMode) {
-      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center,
-        children: [const Icon(Icons.bookmark_border, size: 55, color: AppColors.teal),
-          const SizedBox(height: 12), const Text('Sign in to manage My List'),
-          const SizedBox(height: 15), FilledButton(onPressed: onLogin, child: const Text('Sign In'))]));
-    }
-    if (app.watchlist.isEmpty) {
+        if (app.watchlist.isEmpty) {
       return const Center(child: Text('No saved movies yet.\nTap the + button on a movie.',
         textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)));
     }

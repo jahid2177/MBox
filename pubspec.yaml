@@ -27,7 +27,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/demo/catalog.json
+    - assets/sources/catalog_sources.json
     - assets/images/app_icon.png
 
 flutter_launcher_icons:

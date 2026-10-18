@@ -1,91 +1,68 @@
-# MyStreamFlix Flutter — Dart / Flutter Port
+# MyStreamFlix — Flutter/Dart • User JSON servers
 
-This is a **new Flutter client project** based on the user-supplied `MyStreamFlix-main.zip` source code (Next.js website/backend + Expo mobile app + Capacitor/Java Android TV). It is a **Flutter implementation of the streaming viewer and basic admin flows**, not an automatic line-by-line TS-to-Dart translation or a Dart rewrite of the original Node backend.
+This is an updated Flutter/Dart version of **MyStreamFlix**. It uses only the JSON catalog sources in the supplied `README(1).md`, not sample/demo film or TV links.
 
-## What is implemented
+## Content sources (no Next.js backend needed)
 
-- Responsive dark cinematic UI (mobile and Windows desktop), Home with featured title, trending rows and top-rated rows.
-- Movies / TV Series tabs, genre filters, search, artwork, metadata and episode lists.
-- Live TV browse/channel groups and stream playback route.
-- My List local demo favorites, or server-backed favorites for signed-in accounts.
-- Sign in, registration and persistent HTTP session cookies, validated by `/api/auth/me`; logout clears the cookie jar.
-- Profiles: display, create and switch; watch history listing. Admin screen access is gated on server-reported admin role.
-- Admin CMS: catalog and Live TV browsing, create/edit/delete basic content, user role management and account removal.
-- `media_kit` video playback (MP4 / HLS / formats supported by native media libraries), pause, seek, speed and full screen; periodic watch-history submission.
-- Sample **preview-only** catalog extracted from the supplied dummy content (`--dart-define=DEMO_MODE=true`). In demo mode, account management is disabled; sample movie metadata does **not** assert actual film streams are licensed or authentic.
-- Custom launcher icons copied from supplied mobile source. GitHub Actions: Android release APK (split per ABI) and Windows desktop zip artifact directory.
-- Unit tests for the movie JSON adapter.
+Edit `assets/sources/catalog_sources.json` to manage the supplied lists. The app reads this asset, fetches the live-TV feed and each Movie and Series category from GitHub raw JSON, and parses the remote entries into streaming items.
 
-## What is NOT yet 1:1
+| Server | Live TV | Movie categories | Series categories |
+|---|---|---:|---:|
+| Server 1 | `LiveTV/live_tv.json` | Hollywood, Bollywood, Indian Bangla (3) | English, Korean, Hindi, Bangla, Turkish (5) |
+| Server 2 | `live_tv.json` | Hollywood, Bollywood, Hindi Dubbed, Indian Bangla, Korean, Animation (6) | English, Hindi Dubbed, Hindi TV (3) |
 
-The source project has ~40 Next.js API handlers and much broader web Admin CMS capabilities. This Flutter port **does not yet** include Stripe/PayPal checkout flows, subtitle selector/editor, TMDB import UI, IPTV scanner, Google Drive scan and proxy tools, complete analytics charts, user reviews, video DRM, Android TV remote focus UX or a TV build. Full Netflix-style 1:1 visual parity and production-grade playback reliability across all stream formats have not been verified. Advanced series import/edit is also not included in the basic admin editor. See `docs/SOURCE_ANALYSIS.md`.
+**All 19 user-supplied JSON URLs have been preserved verbatim.** The trailing comma after the final item of Server 2 `movie_categories` in the original README was fixed while generating valid JSON.
 
-## Requirements
+- No `DEMO_MODE` or demo movie links. A missing or unreachable URL produces a visible error instead of substituted content.
+- Switch between **Server 1 / Server 2** in the top toolbar; the choice persists locally.
+- Refresh to fetch the latest source data; category failure does not block other successful categories. Loaded batches become visible while remaining sources are fetched.
+- The `links` array holds movie stream alternatives; series use `season` and `episode` grouping; use the source chooser to pick alternatives. `media_kit` plays supported MP4, HLS, MKV streams.
+- My List persists locally even without signing in.
+- Search and dynamically generated source category filters are provided; Show More loads additional movie cards.
 
-- Flutter stable installed, Dart 3.5+ and Android SDK to build APK. For Windows, Windows 10/11 with Visual Studio C++ desktop tools.
-- A **running compatible MyStreamFlix Next.js backend**, accessible via HTTPS for real authentication, favorites, CRUD and streams.
-- The archive includes **Flutter Dart sources and bootstrap scripts** rather than generated native `android/`, `ios/`, and `windows/` folders. This environment does not include the Flutter SDK; platform templates need to be generated once by Flutter using the setup command below.
+**Live TV feeds caveat:** during source review, both `jahid2177/Mydemoproject` live-TV URLs failed to load from the web retrieval environment. The app keeps your exact URLs and displays errors if the server returns HTTP 404 or is unavailable. Verify that the files are public and paths/case are correct. The live parser supports map/list JSON with nested categories, `url`, `stream_url`, and `links`, but the exact Live TV feed shape has not been independently verified.
 
-> **2026-10-18 CI fix:** The incompatible generated `MyApp` widget test has been replaced with `test/widget_test.dart`, and related analyzer findings were addressed. See [`docs/BUILD_LOG_FIX_2026-10-18.md`](docs/BUILD_LOG_FIX_2026-10-18.md). The amended code still requires a fresh CI build to verify native compilation.
+**Streaming caveat:** a valid JSON feed does not guarantee the underlying media URL is reachable, playable, or licensed for redistribution. External HTTP media hosts may block hotlinking, require headers, use expiring links, or return incompatible codecs. The app does not proxy, cache or bypass access controls.
 
-## First-time setup (Windows)
+## Setup Windows
 
 ```powershell
-# From this extracted project folder, with Flutter in PATH:
 .\scripts\setup_windows.ps1
-flutter doctor
 flutter analyze
 flutter test
-flutter run -d windows --dart-define=API_BASE_URL=https://YOUR-BACKEND.example
+flutter run -d windows
 ```
 
-## First-time setup (Android / macOS / Linux)
+## Android setup
 
 ```bash
 bash scripts/setup_unix.sh
-flutter doctor
-flutter run -d <device-id> --dart-define=API_BASE_URL=https://YOUR-BACKEND.example
-# For Android emulator use HTTPS publicly hosted API or http://10.0.2.2:3000 locally.
-# HTTP in Android may be blocked by OS network security; HTTPS is recommended.
+flutter analyze
+flutter test
+flutter run -d <device-id>
+flutter build apk --release --split-per-abi
 ```
 
-## Demo mode (UI and catalog without a running backend)
+For Android, `scripts/configure_android.py` adds INTERNET permission and allows cleartext HTTP traffic because some supplied media links are HTTP. Prefer HTTPS in the data sources; HTTP streams are not encrypted.
+
+## GitHub Actions
+
+The workflows `.github/workflows/android-apk.yml` and `windows-desktop.yml` generate missing native platform files, analyze, test, build and upload artifacts. Put the contents of this project at the **repository root** and run workflows under Actions.
+
+`flutter` and `dart` were not available in the authoring environment, so the project was not compiled locally. Run GitHub Actions to verify compilation and device playback.
+
+## Optional login / Next.js backend
+
+The supplied GitHub JSON endpoints are static content feeds, **not authentication or database backends**. App browsing, playback and local Favorites work without Next.js, Prisma, Firebase, or sign-in.
+
+For optional original account/profile/admin functions, provide a secure compatible Next.js deployment and pass both:
 
 ```bash
-flutter run -d <device-id> --dart-define=DEMO_MODE=true
+flutter run -d windows --dart-define=ENABLE_ACCOUNTS=true --dart-define=API_BASE_URL=https://YOUR-OWN-BACKEND.example
 ```
 
-Poster images in demo use internet-hosted references from the **original** sample dataset. Sample stream URLs may be unplayable or point to unrelated demonstration videos. This is a UI preview, **not** a production content library.
+**Security:** do not publicly deploy the original Next.js backend before fixing the exposed admin header bypasses documented in `docs/SOURCE_ANALYSIS.md`. Admin CMS modifies the optional Next.js database, not the read-only GitHub raw JSON lists.
 
-## Build APK / Windows
+Use only video/channel feeds that you have permission to distribute.
 
-```bash
-flutter build apk --release --split-per-abi --dart-define=API_BASE_URL=https://YOUR-BACKEND.example
-flutter build windows --release --dart-define=API_BASE_URL=https://YOUR-BACKEND.example
-```
-
-For GitHub Actions, push **contents of this Flutter project as the repository root**, run `Android APK` or `Windows Desktop` under Actions. Set repository variable `API_BASE_URL` (Settings → Secrets and variables → Actions → Variables). Binary artifacts are attached to completed runs. The Android workflow produces a debug-key-signed **release-mode** artifact for development/testing; configure your own signing keys for Google Play distribution.
-
-## API and session design
-
-`lib/services/api_service.dart` uses Dio and `PersistCookieJar`. The original backend issues an HttpOnly session cookie upon sign-in and registration. Flutter sends the cookie on subsequent requests; the backend must validate authorization on every protected endpoint. An admin role in the mobile UI alone does **not** secure an API.
-
-| Action | API |
-|---|---|
-| Browse / detail | `GET /api/movies`, `GET /api/movies/:id` |
-| Authenticate | `POST /api/auth/login`, `/register`, `/logout`; `GET /api/auth/me` |
-| Favorites | `GET/POST /api/user/favorites`, `DELETE /api/user/favorites/:movieId` |
-| History | `POST /api/user/history` |
-| Profiles | `POST /api/auth/profile/create`, `/switch` |
-| Admin content | `POST /api/movies`, `PUT/DELETE /api/movies/:id` |
-| Admin users | `GET /api/users`, `PUT /api/users/:id/role`, `DELETE /api/users/:id` |
-
-### Important security warning about the supplied backend
-
-Several supplied Next.js admin routes permit fixed `x-admin-pin`, `x-admin-key` or other header values **instead of securely checking the logged-in user's role**. Some accept arbitrary `Authorization: Bearer ...` headers. These bypasses are a **critical vulnerability**. The Flutter port never sends or embeds those backdoor headers, but the backend remains vulnerable until the server routes are patched. **Do not publicly deploy the original backend without removing the header bypasses, auditing every privileged endpoint and rotating any exposed credentials.** It also contains demo-account behavior and simulated payments. Production subscriptions must be verified server-side via real provider webhooks.
-
-## Other notes
-
-- This project has **not been compiled here** because Flutter/Dart SDKs are not installed in the provided workspace. Run `flutter analyze`, `flutter test`, and the Actions workflows in an SDK-enabled environment.
-- The original ZIP is needed to deploy the backend; the Flutter project does not contain a Next.js server, Prisma database or real movie files.
-- Publish only content you have the right to distribute. Do not log in with production credentials to an untrusted clone server.
+When applying the **changed-files-only** ZIP over an older build, delete `assets/demo/catalog.json` from the old repository as well. The complete updated ZIP already omits this file.

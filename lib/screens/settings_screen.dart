@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
-import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 
 /// Preferences are stored only on this device, not in any remote JSON feed.
@@ -119,8 +118,10 @@ class SettingsScreen extends StatelessWidget {
           ));
           if (confirmed != true) return;
           await app.resetPlayerPreferences();
-          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Player settings reset')));
+          }
         },
         icon: const Icon(Icons.restart_alt),
         label: const Text('Reset player preferences'),

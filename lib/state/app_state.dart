@@ -248,6 +248,7 @@ class AppState extends ChangeNotifier {
       ]) {
         await prefs.remove(key);
       }
+      return null;
     });
   }
 

@@ -7,15 +7,31 @@
         "maintenance": false,
         "movie_categories": [
           {
-            "name": "Hollywood",
+            "name": "English Movies",
             "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hollywood.json"
           },
           {
-            "name": "Bollywood",
+            "name": "Hindi Movies",
             "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hindi.json"
           },
           {
-            "name": "Indian Bangla",
+            "name": "English-Hindi Dubbed",
+            "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Indian_Bangla.json"
+          },
+          {
+            "name": "Foreign Movies",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hollywood.json"
+          },
+          {
+            "name": "South Indian Movies",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hindi.json"
+          },
+          {
+            "name": "South Indian Dubbed",
+            "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Indian_Bangla.json"
+          },
+          {
+            "name": "Animation Movies",
             "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Indian_Bangla.json"
           }
         ],

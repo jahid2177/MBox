@@ -1,4 +1,5 @@
 name: MyStreamFlix Flutter Android TV APK
+
 on:
   workflow_dispatch:
   push:
@@ -11,26 +12,31 @@ on:
       - 'android/**'
       - 'scripts/**'
       - '.github/workflows/android-tv-apk.yml'
+
 permissions:
   contents: read
+
 jobs:
   android-tv:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
       - name: Generate native Flutter platforms
         run: flutter create --project-name mystreamflix_flutter --org com.mystreamflix --platforms=android,ios,windows .
+
       - name: Configure networking and Android TV launcher
         run: |
           python3 scripts/configure_android.py
           python3 scripts/configure_android_tv.py
           python3 scripts/verify_android_manifest.py
           python3 scripts/verify_android_tv.py
+
       - run: flutter pub get
       - name: Check shared_preferences native implementation
         run: flutter pub deps --style=compact | grep -F 'shared_preferences_android 2.4.28'
@@ -39,8 +45,48 @@ jobs:
         run: flutter analyze --no-fatal-infos
       - name: Unit/widget tests
         run: flutter test
+
+      - name: Install Android NDK 28.2.13676358 (verify and retry corrupt downloads)
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$SDK" ]; then
+            echo "::error::ANDROID_SDK_ROOT or ANDROID_HOME is not set"
+            exit 1
+          fi
+          MANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$MANAGER" ]; then
+            echo "::error::Android sdkmanager not found: $MANAGER"
+            exit 1
+          fi
+          NDK_VERSION="28.2.13676358"
+          NDK_DIR="$SDK/ndk/$NDK_VERSION"
+          for attempt in 1 2 3; do
+            echo "Installing NDK $NDK_VERSION, attempt $attempt/3"
+            if "$MANAGER" --sdk_root="$SDK" --channel=0 --install "ndk;$NDK_VERSION"; then
+              if [ -f "$NDK_DIR/source.properties" ] && grep -Fq "Pkg.Revision = $NDK_VERSION" "$NDK_DIR/source.properties"; then
+                echo "Verified Android NDK: $NDK_DIR"
+                echo "ANDROID_NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
+                exit 0
+              fi
+              echo "::warning::NDK install exited 0, but source.properties is missing or mismatched"
+            else
+              echo "::warning::NDK installation failed on attempt $attempt"
+            fi
+            # SDK Manager may leave a truncated archive or partly extracted NDK.
+            # Delete both before retrying, not just Gradle/Flutter build caches.
+            rm -rf "$NDK_DIR" "$SDK/.downloadIntermediates" "$SDK/.temp" "$SDK/downloadIntermediates" "$SDK/temp"
+            if [ "$attempt" -lt 3 ]; then
+              sleep 15
+            fi
+          done
+          echo "::error::Unable to install NDK $NDK_VERSION after three clean attempts; check disk space and access to Google's Android SDK downloads."
+          exit 1
+
       - name: Build Android TV ARM64 APK
         run: flutter build apk --release --target-platform android-arm64 --dart-define=ANDROID_TV=true --dart-define=ENABLE_ACCOUNTS=false
+
       - uses: actions/upload-artifact@v4
         with:
           name: MyStreamFlix-Android-TV-ARM64-APK

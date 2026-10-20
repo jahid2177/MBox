@@ -5,6 +5,8 @@ import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/media_widgets.dart';
 import 'admin_screen.dart';
+import 'settings_screen.dart';
+import 'about_screen.dart';
 import 'auth_screen.dart';
 import 'detail_screen.dart';
 import 'live_screen.dart';
@@ -18,6 +20,18 @@ class ShellScreen extends StatefulWidget {
 
 class _ShellScreenState extends State<ShellScreen> {
   int tab = 0;
+  static const labels = ['Home', 'Movies', 'Series', 'Live TV', 'My List', 'Settings', 'About'];
+  static const icons = [
+    Icons.home_rounded, Icons.movie_creation_outlined, Icons.tv_outlined,
+    Icons.live_tv_outlined, Icons.bookmark_outline,
+    Icons.settings_outlined, Icons.info_outline_rounded,
+  ];
+
+  void changeTab(int next) => setState(() {
+    tab = next;
+    genre = 'All';
+    visibleLimit = 120;
+  });
   String search = '';
   String genre = 'All';
   int visibleLimit = 120;
@@ -42,12 +56,13 @@ class _ShellScreenState extends State<ShellScreen> {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final wide = MediaQuery.sizeOf(context).width >= 880;
-    final labels = ['Home', 'Movies', 'Series', 'Live TV', 'My List'];
-    final icons = [Icons.home_rounded, Icons.movie_creation_outlined, Icons.tv_outlined, Icons.live_tv_outlined, Icons.bookmark_outline];
+    final wide = androidTvBuild || MediaQuery.sizeOf(context).width >= 880;
+    final compact = MediaQuery.sizeOf(context).width < 460;
     final page = switch (tab) {
       3 => LiveScreen(onSelect: openDetail, onLogin: showLogin),
       4 => _SavedContent(onSelect: openDetail, onLogin: showLogin),
+      5 => SettingsScreen(onOpenLiveTv: () => changeTab(3)),
+      6 => const AboutScreen(),
       _ => _CatalogContent(tab: tab, search: search, genre: genre,
           onGenre: (value) => setState(() { genre = value; visibleLimit = 120; }),
           visibleLimit: visibleLimit, onMore: () => setState(() => visibleLimit += 120),
@@ -55,20 +70,39 @@ class _ShellScreenState extends State<ShellScreen> {
     };
 
     return Scaffold(
+      drawer: wide ? null : Drawer(child: SafeArea(child: ListView(children: [
+        const Padding(padding: EdgeInsets.fromLTRB(18, 26, 18, 18), child: Text(
+          'MyStreamFlix', style: TextStyle(fontSize: 23, color: AppColors.teal,
+            fontWeight: FontWeight.w800))),
+        for (var i = 0; i < labels.length; i++)
+          ListTile(
+            selected: tab == i,
+            selectedTileColor: AppColors.surface,
+            leading: Icon(icons[i], color: tab == i ? AppColors.teal : null),
+            title: Text(labels[i]),
+            onTap: () { Navigator.pop(context); changeTab(i); },
+          ),
+      ]))),
       appBar: AppBar(
         toolbarHeight: wide ? 76 : 61,
-        titleSpacing: 16,
+        titleSpacing: compact ? 0 : 16,
         title: searchOpen ? TextField(
           autofocus: true, controller: searchController,
           onChanged: (value) => setState(() { search = value; visibleLimit = 120; }),
           decoration: const InputDecoration(hintText: 'Search movies and TV shows', prefixIcon: Icon(Icons.search), isDense: true),
-        ) : Row(mainAxisSize: MainAxisSize.min, children: [
+        ) : FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.play_circle_fill_rounded, color: AppColors.teal, size: 29),
           const SizedBox(width: 5),
           Text('MyStream', style: TextStyle(fontWeight: FontWeight.w900, fontSize: wide ? 24 : 19)),
           Text('Flix', style: TextStyle(fontWeight: FontWeight.w900, fontSize: wide ? 24 : 19, color: AppColors.teal)),
-        ]),
+        ])),
         actions: [
+          IconButton(tooltip: 'Refresh content',
+            onPressed: app.loading ? null : app.refresh,
+            icon: app.loading ? const SizedBox(width: 19, height: 19,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.teal))
+              : const Icon(Icons.refresh_rounded)),
           IconButton(tooltip: searchOpen ? 'Close search' : 'Search',
             onPressed: () => setState(() { searchOpen = !searchOpen; if (!searchOpen) { search = ''; searchController.clear(); } }),
             icon: Icon(searchOpen ? Icons.close : Icons.search_rounded)),
@@ -79,8 +113,10 @@ class _ShellScreenState extends State<ShellScreen> {
               value: i, child: Row(children: [if (i == app.serverIndex) const Icon(Icons.check, size: 18, color: AppColors.teal),
               const SizedBox(width: 5), Text(app.servers[i].name)]))),
             child: Padding(padding: const EdgeInsets.symmetric(horizontal: 7), child: Row(
-              mainAxisSize: MainAxisSize.min, children: [Text(app.currentServer, style: const TextStyle(fontSize: 12)),
-                const Icon(Icons.arrow_drop_down)])),
+              mainAxisSize: MainAxisSize.min, children: [
+                if (compact) const Icon(Icons.dns_outlined, size: 20)
+                else Text(app.currentServer, style: const TextStyle(fontSize: 12)),
+                const Icon(Icons.arrow_drop_down, size: 17)])),
           ),
           if (app.isAdmin) IconButton(tooltip: 'Admin CMS', onPressed: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => const AdminScreen())), icon: const Icon(Icons.admin_panel_settings, color: AppColors.teal)),
@@ -94,10 +130,10 @@ class _ShellScreenState extends State<ShellScreen> {
       ),
       body: Row(children: [
         if (wide) NavigationRail(
-          selectedIndex: tab, onDestinationSelected: (v) => setState(() { tab = v; genre = 'All'; visibleLimit = 120; }),
+          selectedIndex: tab, onDestinationSelected: changeTab,
           labelType: NavigationRailLabelType.all,
           backgroundColor: AppColors.bg, indicatorColor: AppColors.teal.withValues(alpha: .16),
-          destinations: List.generate(5, (i) => NavigationRailDestination(icon: Icon(icons[i]),
+          destinations: List.generate(labels.length, (i) => NavigationRailDestination(icon: Icon(icons[i]),
               selectedIcon: Icon(icons[i], color: AppColors.teal), label: Text(labels[i]))),
         ),
         Expanded(child: page),
@@ -106,7 +142,7 @@ class _ShellScreenState extends State<ShellScreen> {
         backgroundColor: const Color(0xFF101017),
         height: 69, labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         indicatorColor: AppColors.teal.withValues(alpha: .19),
-        selectedIndex: tab, onDestinationSelected: (v) => setState(() { tab = v; genre = 'All'; visibleLimit = 120; }),
+        selectedIndex: tab >= 5 ? 4 : tab, onDestinationSelected: changeTab,
         destinations: List.generate(5, (i) => NavigationDestination(
             icon: Icon(icons[i], size: 22), selectedIcon: Icon(icons[i], color: AppColors.teal),
             label: labels[i], tooltip: labels[i])),

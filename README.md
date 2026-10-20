@@ -87,3 +87,27 @@ This version includes a checked-in Android manifest with release INTERNET permis
 ### Android release app initialization fix (2026-10-20)
 
 The `shared_preferences_android` dependency is pinned to `2.4.28` to avoid an Android release-only JNI/R8 crash involving `SharedPreferencesApiRegistrar.getAll`. The Android build workflow checks the resolved version. See `docs/ANDROID_SHARED_PREFERENCES_CRASH_FIX_2026-10-20.md`.
+
+## Android TV + modern player + Settings/About (2026-10-20)
+
+See [Android TV, player & settings guide](docs/ANDROID_TV_PLAYER_SETTINGS_2026-10-20.md).
+
+**Dedicated Android TV ARM64 APK:** GitHub Actions → `MyStreamFlix Flutter Android TV APK`
+→ Run workflow → artifact `MyStreamFlix-Android-TV-ARM64-APK`. TV builds have
+Leanback launcher, TV banner and remote-aware controls. Normal Android APK and
+Windows workflows are unchanged.
+
+- The top app bar has **Refresh content** on Android, Android TV and Windows.
+- The Windows/TV sidebar has **Settings** and **About** after **My List**. On
+  smaller mobile screens, find both in the hamburger drawer above the bottom bar.
+- **Settings**: server selection, refresh, Live TV source navigation, playback
+  speed, seek interval, autoplay, video fit/fill, subtitles, audio language,
+  and reset player preferences.
+- **About**: Developer **Md Jahidul Islam**.
+- The updated media_kit player has an MX-inspired interface with dual-audio
+  track selection **if the video stream actually provides multiple audio tracks**,
+  subtitle selection, speed, fullscreen, seek, volume and TV D-pad support.
+
+**Note:** Dual-audio tracks are an attribute of the original media, not of the
+player UI. A link with only one audio stream cannot be magically changed into
+two languages. The supplied Live TV URLs may still return HTTP 404.

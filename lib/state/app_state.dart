@@ -8,6 +8,9 @@ import '../services/external_catalog_service.dart';
 // Server account APIs are optional. Movies/TV/Series NEVER depend on Next.js.
 const accountsEnabled = bool.fromEnvironment('ENABLE_ACCOUNTS', defaultValue: false);
 
+// Separate TV build: app navigation and remote focus are optimized for televisions.
+const androidTvBuild = bool.fromEnvironment('ANDROID_TV', defaultValue: false);
+
 class AppState extends ChangeNotifier {
   AppState({this.api, ExternalCatalogService? sources}) : sources = sources ?? ExternalCatalogService();
   final ApiService? api;
@@ -22,6 +25,15 @@ class AppState extends ChangeNotifier {
   String? error;
   List<String> warnings = [];
   int _refreshVersion = 0;
+
+  // Local, cross-platform player preferences (never stored on the catalog server).
+  double playbackSpeed = 1.0;
+  int seekSeconds = 10;
+  bool autoPlay = true;
+  bool subtitlesEnabled = true;
+  bool fillVideo = false;
+  String preferredAudioLanguage = 'auto';
+
   bool get loggedIn => user != null;
   bool get isAdmin => accountsEnabled && user?.isAdmin == true;
   String get currentServer => servers.isEmpty ? 'Server 1' : servers[serverIndex].name;
@@ -62,6 +74,16 @@ class AppState extends ChangeNotifier {
     try {
       final store = await _readLocalSettings();
       favoriteIds = store?.getStringList('favorites_local')?.toSet() ?? {};
+      playbackSpeed = store?.getDouble('player_speed') ?? 1.0;
+      if (![0.5, 0.75, 1.0, 1.25, 1.5, 2.0].contains(playbackSpeed)) {
+        playbackSpeed = 1.0;
+      }
+      seekSeconds = store?.getInt('player_seek_seconds') ?? 10;
+      if (![10, 15, 30].contains(seekSeconds)) seekSeconds = 10;
+      autoPlay = store?.getBool('player_autoplay') ?? true;
+      subtitlesEnabled = store?.getBool('player_subtitles') ?? true;
+      fillVideo = store?.getBool('player_fill_video') ?? false;
+      preferredAudioLanguage = store?.getString('player_audio_language') ?? 'auto';
       defaultServers = await ExternalCatalogService.availableServers();
       servers = List<CatalogServer>.of(defaultServers);
       for (var i = 0; i < servers.length; i++) {
@@ -172,6 +194,63 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> updatePlaybackSpeed(double speed) async {
+    if (![0.5, 0.75, 1.0, 1.25, 1.5, 2.0].contains(speed)) return;
+    playbackSpeed = speed;
+    notifyListeners();
+    await _saveLocalSettings((prefs) => prefs.setDouble('player_speed', speed));
+  }
+
+  Future<void> updateSeekSeconds(int seconds) async {
+    if (![10, 15, 30].contains(seconds)) return;
+    seekSeconds = seconds;
+    notifyListeners();
+    await _saveLocalSettings((prefs) => prefs.setInt('player_seek_seconds', seconds));
+  }
+
+  Future<void> updateAutoPlay(bool value) async {
+    autoPlay = value;
+    notifyListeners();
+    await _saveLocalSettings((prefs) => prefs.setBool('player_autoplay', value));
+  }
+
+  Future<void> updateSubtitles(bool value) async {
+    subtitlesEnabled = value;
+    notifyListeners();
+    await _saveLocalSettings((prefs) => prefs.setBool('player_subtitles', value));
+  }
+
+  Future<void> updateVideoFill(bool value) async {
+    fillVideo = value;
+    notifyListeners();
+    await _saveLocalSettings((prefs) => prefs.setBool('player_fill_video', value));
+  }
+
+  Future<void> updateAudioLanguage(String value) async {
+    if (!['auto', 'en', 'hi', 'bn', 'ko', 'tr'].contains(value)) return;
+    preferredAudioLanguage = value;
+    notifyListeners();
+    await _saveLocalSettings((prefs) => prefs.setString('player_audio_language', value));
+  }
+
+  Future<void> resetPlayerPreferences() async {
+    playbackSpeed = 1.0;
+    seekSeconds = 10;
+    autoPlay = true;
+    subtitlesEnabled = true;
+    fillVideo = false;
+    preferredAudioLanguage = 'auto';
+    notifyListeners();
+    await _saveLocalSettings((prefs) async {
+      for (final key in [
+        'player_speed', 'player_seek_seconds', 'player_autoplay',
+        'player_subtitles', 'player_fill_video', 'player_audio_language',
+      ]) {
+        await prefs.remove(key);
+      }
+    });
+  }
+
   Future<void> login(String email, String password) async {
     if (!accountsEnabled || api == null) {
       throw StateError('Account backend is not configured.');
@@ -227,3 +306,4 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 }
+

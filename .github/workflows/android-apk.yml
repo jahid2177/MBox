@@ -8,6 +8,7 @@ on:
       - 'assets/**'
       - 'test/**'
       - 'pubspec.yaml'
+      - 'android/**'
       - '.github/workflows/android-apk.yml'
       - 'scripts/**'
 permissions:
@@ -28,6 +29,8 @@ jobs:
       - name: Verify Android content network permissions
         run: python3 scripts/verify_android_manifest.py
       - run: flutter pub get
+      - name: Verify safe Android shared_preferences plugin version
+        run: flutter pub deps --style=compact | grep -F 'shared_preferences_android 2.4.28'
       - run: dart run flutter_launcher_icons
       - run: dart format lib test
       - run: flutter analyze --no-fatal-infos

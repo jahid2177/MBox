@@ -1,0 +1,49 @@
+name: MyStreamFlix Flutter Android TV APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'test/**'
+      - 'pubspec.yaml'
+      - 'android/**'
+      - 'scripts/**'
+      - '.github/workflows/android-tv-apk.yml'
+permissions:
+  contents: read
+jobs:
+  android-tv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate native Flutter platforms
+        run: flutter create --project-name mystreamflix_flutter --org com.mystreamflix --platforms=android,ios,windows .
+      - name: Configure networking and Android TV launcher
+        run: |
+          python3 scripts/configure_android.py
+          python3 scripts/configure_android_tv.py
+          python3 scripts/verify_android_manifest.py
+          python3 scripts/verify_android_tv.py
+      - run: flutter pub get
+      - name: Check shared_preferences native implementation
+        run: flutter pub deps --style=compact | grep -F 'shared_preferences_android 2.4.28'
+      - run: dart run flutter_launcher_icons
+      - name: Static analysis
+        run: flutter analyze --no-fatal-infos
+      - name: Unit/widget tests
+        run: flutter test
+      - name: Build Android TV ARM64 APK
+        run: flutter build apk --release --target-platform android-arm64 --dart-define=ANDROID_TV=true --dart-define=ENABLE_ACCOUNTS=false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyStreamFlix-Android-TV-ARM64-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14

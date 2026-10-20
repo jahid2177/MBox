@@ -32,16 +32,40 @@ class AppState extends ChangeNotifier {
   List<MediaItem> get videos => catalog.where((m) => !m.isLive).toList();
   List<MediaItem> get watchlist => catalog.where((m) => favoriteIds.contains(m.id)).toList();
 
+  // Content browsing must work even if optional Android local settings fail.
+  // This is a fallback; the actual release plugin issue is fixed in pubspec.yaml.
+  Future<SharedPreferences?> _readLocalSettings() async {
+    try {
+      return await SharedPreferences.getInstance();
+    } catch (e, stack) {
+      debugPrint('Could not access local settings: $e\n$stack');
+      return null;
+    }
+  }
+
+  Future<void> _saveLocalSettings(
+      Future<Object?> Function(SharedPreferences) update) async {
+    final prefs = await _readLocalSettings();
+    if (prefs == null) {
+      return;
+    }
+    try {
+      await update(prefs);
+    } catch (e, stack) {
+      debugPrint('Could not save local settings: $e\n$stack');
+    }
+  }
+
   Future<void> init() async {
     // Report startup/plugin/asset errors in the app instead of leaving a
     // permanent loading indicator on Android.
     try {
-      final store = await SharedPreferences.getInstance();
-      favoriteIds = store.getStringList('favorites_local')?.toSet() ?? {};
+      final store = await _readLocalSettings();
+      favoriteIds = store?.getStringList('favorites_local')?.toSet() ?? {};
       defaultServers = await ExternalCatalogService.availableServers();
       servers = List<CatalogServer>.of(defaultServers);
       for (var i = 0; i < servers.length; i++) {
-        final overrideUrl = store.getString('live_tv_override_$i');
+        final overrideUrl = store?.getString('live_tv_override_$i');
         if (overrideUrl != null && overrideUrl.isNotEmpty) {
           servers[i] = _withLiveTvUrl(servers[i], overrideUrl);
         }
@@ -52,7 +76,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         return;
       }
-      serverIndex = (store.getInt('selected_server_index') ?? 0)
+      serverIndex = (store?.getInt('selected_server_index') ?? 0)
           .clamp(0, servers.length - 1).toInt();
       notifyListeners();
       if (accountsEnabled && api != null) {
@@ -78,8 +102,8 @@ class AppState extends ChangeNotifier {
     serverIndex = index;
     catalog = [];
     warnings = [];
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('selected_server_index', index);
+    await _saveLocalSettings(
+        (prefs) => prefs.setInt('selected_server_index', index));
     await refresh();
   }
 
@@ -100,16 +124,16 @@ class AppState extends ChangeNotifier {
       throw const FormatException('Live TV URL must be a valid HTTPS address.');
     }
     final index = serverIndex;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('live_tv_override_$index', uri.toString());
+    await _saveLocalSettings(
+        (prefs) => prefs.setString('live_tv_override_$index', uri.toString()));
     servers[index] = _withLiveTvUrl(servers[index], uri.toString());
     await refresh();
   }
 
   Future<void> resetLiveTvUrl() async {
     final index = serverIndex;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('live_tv_override_$index');
+    await _saveLocalSettings(
+        (prefs) => prefs.remove('live_tv_override_$index'));
     servers[index] = defaultServers[index];
     await refresh();
   }
@@ -182,8 +206,8 @@ class AppState extends ChangeNotifier {
     } else {
       favoriteIds.add(movie.id);
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('favorites_local', favoriteIds.toList());
+    await _saveLocalSettings(
+        (prefs) => prefs.setStringList('favorites_local', favoriteIds.toList()));
     notifyListeners();
   }
 

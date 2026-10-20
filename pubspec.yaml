@@ -14,6 +14,9 @@ dependencies:
   cookie_jar: ^4.0.9
   path_provider: ^2.1.5
   shared_preferences: ^2.5.3
+  # Android 2.5.0/2.5.1 can crash release APKs under R8's JNI obfuscation.
+  # Keep the pre-JNI implementation until a verified upstream fix is available.
+  shared_preferences_android: 2.4.28
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7

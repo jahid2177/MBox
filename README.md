@@ -82,3 +82,8 @@ There is **no invented/demo channel fallback**. Restore original resets back to 
 ### Android content loading troubleshooting (October 2026)
 
 This version includes a checked-in Android manifest with release INTERNET permission, per-source incremental loading, background JSON parsing and category-specific errors. See [docs/ANDROID_CONTENT_LOADING_FIX.md](docs/ANDROID_CONTENT_LOADING_FIX.md). The user-supplied Live TV URLs may still return HTTP 404; an accessible Live TV JSON feed is needed to display those channels. No demo content was substituted.
+
+
+### Android release app initialization fix (2026-10-20)
+
+The `shared_preferences_android` dependency is pinned to `2.4.28` to avoid an Android release-only JNI/R8 crash involving `SharedPreferencesApiRegistrar.getAll`. The Android build workflow checks the resolved version. See `docs/ANDROID_SHARED_PREFERENCES_CRASH_FIX_2026-10-20.md`.

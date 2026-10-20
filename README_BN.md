@@ -1,63 +1,41 @@
-# MBox Android TV Static Analysis Fix
+# MBox Windows / Android / Android TV — flutter analyze fix
 
-**Log:** `logs_106920604869.zip`  
-**GitHub source:** `jahid2177/MBox`, commit `8cab1625a9a54780142623ecf71c6952bc9aeac9`  
-**Affected:** `lib/screens/settings_screen.dart`, `lib/state/app_state.dart`
+## সমস্যার কারণ
 
-## লগে পাওয়া সমস্যা
+তিনটি Build-ই একই Flutter `lib/` সোর্স ব্যবহার করে। বর্তমান `MBox`-এ:
 
-1. `settings_screen.dart:3:8` — `unused_import`
-2. `settings_screen.dart:122:32` — `curly_braces_in_flow_control_structures`
-3. `app_state.dart:244:44` — `body_might_complete_normally_nullable`
+1. `lib/screens/settings_screen.dart`: unused `../state/app_state.dart` import
+2. একই ফাইলে Snackbar দেখানোর `if (context.mounted)`-এ `{}` নেই
+3. `lib/state/app_state.dart`: preference reset-এর async callback-এ explicit return নেই
 
-`flutter analyze --no-fatal-infos`-এ Warning থাকলে Exit Code 1 আসে। তাই Android TV APK Build শুরু হয়নি। অন্যদিকে `shared_preferences_android 2.4.28` সঠিকভাবে resolve হয়েছে।
+`flutter analyze --no-fatal-infos` Warning-এ exit code 1 দেয়।
 
-## সবচেয়ে সহজ সমাধান — Patch Script
+## সহজ পদ্ধতি: GitHub Actions থেকে সরাসরি সোর্স Fix
 
-১. আপনার **বর্তমান MBox Repository**-এর রুটে `apply_fix.py` রাখুন (এই পুরোনো MyStreamFlix ZIP দিয়ে `MBox` Replace করবেন না)।  
-২. আপনার PC বা Codespaces Terminal-এ চালান:
+1. ZIP খুলে `.github/workflows/fix-mbox-analyzer.yml` এবং `scripts/fix_mbox_analyzer.py` ফাইল দুটি **একই path-এ** MBox GitHub Repository-তে আপলোড ও Commit করুন।
+2. GitHub → Actions → **Fix MBox Flutter Analyze (All Platforms)** → **Run workflow** নির্বাচন করুন।
+3. এই Workflow দুটি Dart ফাইলের সংশোধন **নিজে Commit এবং Push** করবে। শুধু Script upload করলে সমস্যা ঠিক হয় না।
+4. নতুন Commit হয়েছে নিশ্চিত করে Windows, Android APK ও Android TV তিনটি Build আবার Run করুন।
+
+GitHub Actions-এর `GITHUB_TOKEN` write access বন্ধ থাকলে Repository Settings → Actions → General → Workflow permissions থেকে Read and write permissions অনুমোদন দিতে হতে পারে। Branch protection থাকলে সরাসরি push ব্যর্থ হবে; সে ক্ষেত্রে স্থানীয় পদ্ধতি ব্যবহার করুন অথবা PR মার্জ করুন।
+
+## বিকল্প পদ্ধতি: নিজের PC থেকে Fix
+
+প্রজেক্টের root directory-তে দুটি ফাইল upload/copy করে চালান:
 
 ```bash
-python3 apply_fix.py
+python3 scripts/fix_mbox_analyzer.py
 flutter analyze --no-fatal-infos
+git add lib/screens/settings_screen.dart lib/state/app_state.dart
+git commit -m "fix: resolve MBox analyzer warnings"
+git push
 ```
 
-৩. Script দুটো Dart ফাইলে নির্দিষ্ট অংশ পরিবর্তন করবে। আগের ফাইলের `.bak` backup থাকবে। এরপর `lib/screens/settings_screen.dart` ও `lib/state/app_state.dart` GitHub-এ Commit করুন।
+Windows PowerShell-এ `python` ব্যবহার করতে হতে পারে।
 
-## GitHub Editor দিয়ে সরাসরি ঠিক করতে চাইলে
+## গুরুত্বপূর্ণ
 
-**`lib/screens/settings_screen.dart`** থেকে এই লাইন মুছে দিন:
-
-```dart
-import '../state/app_state.dart';
-```
-
-এক লাইনের `mounted` check-কে পরিবর্তন করুন:
-
-```dart
-if (context.mounted) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Player settings reset')),
-  );
-}
-```
-
-**`lib/state/app_state.dart`**-এ `resetPlayerPreferences()`-এর `_saveLocalSettings((prefs) async { ... });` callback-এর `for` লুপ শেষে `return null;` যুক্ত করুন:
-
-```dart
-await _saveLocalSettings((prefs) async {
-  for (final key in [
-    'player_speed', 'player_seek_seconds', 'player_autoplay',
-    'player_subtitles', 'player_fill_video', 'player_audio_language',
-  ]) {
-    await prefs.remove(key);
-  }
-  return null;
-});
-```
-
-## এরপর
-
-- **Actions → Android TV → Run workflow** চালান।
-- এই সংশোধন কেবল লগে পাওয়া Static Analysis সমস্যা লক্ষ্য করে করা। Flutter/Android SDK-তে এখানে সম্পূর্ণ APK Build পরীক্ষা করা হয়নি।
-- এটি Live TV JSON HTTP 404 বা APK-এর প্লেব্যাক সংক্রান্ত সমস্যা সমাধানের দাবি নয়।
+- Original Player, TV UI, JSON server URL, Android/Windows Workflow পরিবর্তন করা হয় না।
+- Fix script একাধিকবার চালালে duplicate পরিবর্তন করবে না।
+- এই প্যাকেজের Python patch-এর fixture tests চালানো হয়েছে; Flutter SDK না থাকায় প্রকৃত Flutter Analyze / APK/EXE Build যাচাই করা যায়নি।
+- ভবিষ্যতে সোর্সের গঠন বদলালে Script অনুমান করে Code পরিবর্তন না করে error দেখাবে।

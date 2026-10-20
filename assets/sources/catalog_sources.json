@@ -8,31 +8,31 @@
         "movie_categories": [
           {
             "name": "English Movies",
-            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hollywood.json"
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/English_Movies.json"
           },
           {
             "name": "Hindi Movies",
-            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hindi.json"
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/Hindi_Movies.json"
           },
           {
             "name": "English-Hindi Dubbed",
-            "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Indian_Bangla.json"
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/English-hindi-dubbed.json"
           },
           {
             "name": "Foreign Movies",
-            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hollywood.json"
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/Foreign-language-movies.json"
           },
           {
             "name": "South Indian Movies",
-            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/movies_hindi.json"
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/South-indian-movie.json"
           },
           {
             "name": "South Indian Dubbed",
-            "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Indian_Bangla.json"
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/South-indian-dubbed.json"
           },
           {
             "name": "Animation Movies",
-            "url": "https://raw.githubusercontent.com/jahid2177/Mydemoproject/refs/heads/main/Indian_Bangla.json"
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/circle%20ftp/Movies/Animation-movies.json"
           }
         ],
         "series_categories": [

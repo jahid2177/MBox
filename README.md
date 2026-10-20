@@ -66,3 +66,19 @@ flutter run -d windows --dart-define=ENABLE_ACCOUNTS=true --dart-define=API_BASE
 Use only video/channel feeds that you have permission to distribute.
 
 When applying the **changed-files-only** ZIP over an older build, delete `assets/demo/catalog.json` from the old repository as well. The complete updated ZIP already omits this file.
+
+## Live TV: fixing HTTP 404 on Server 1 / Server 2
+
+Both live_tv.json URLs provided in `assets/sources/catalog_sources.json` were checked and returned 404 on 2026-10-19.
+The app cannot display TV channels without a working source file. This build adds **Live TV → Change Live TV URL**:
+
+1. In GitHub, find the actual public live TV JSON file and use **Raw** to copy its URL.
+2. Switch to the correct server in the app. Open the Live TV page and press the antenna/settings icon or **Change Live TV URL**.
+3. Paste the new URL, press **Verify & Save**, and the app checks whether it contains playable channel entries before saving.
+4. The URL is saved for that server on the local device. A separate URL can be saved for Server 2.
+
+There is **no invented/demo channel fallback**. Restore original resets back to the original URL, which still requires a fix in GitHub. See `docs/LIVE_TV_HTTP_404_FIX.md`.
+
+### Android content loading troubleshooting (October 2026)
+
+This version includes a checked-in Android manifest with release INTERNET permission, per-source incremental loading, background JSON parsing and category-specific errors. See [docs/ANDROID_CONTENT_LOADING_FIX.md](docs/ANDROID_CONTENT_LOADING_FIX.md). The user-supplied Live TV URLs may still return HTTP 404; an accessible Live TV JSON feed is needed to display those channels. No demo content was substituted.

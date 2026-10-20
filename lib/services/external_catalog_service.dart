@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/media_item.dart';
 
@@ -37,15 +38,54 @@ class CatalogLoadResult {
   final List<String> problems;
 }
 
+// Parse large catalogs outside the Flutter UI isolate so scrolling, navigation
+// and progress updates remain responsive on Android phones.
+List<MediaItem> _parseCatalogTask(Map<String, dynamic> task) {
+  return CatalogParser.parse(task['body'],
+    type: task['type'] as String,
+    category: task['category'] as String,
+    sourceUrl: task['sourceUrl'] as String);
+}
+
 class ExternalCatalogService {
   ExternalCatalogService({Dio? client}) : _dio = client ?? Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 18),
-    receiveTimeout: const Duration(seconds: 60),
+    connectTimeout: const Duration(seconds: 12),
+    receiveTimeout: const Duration(seconds: 45),
     responseType: ResponseType.json,
     headers: const {'Accept': 'application/json'},
   ));
 
   final Dio _dio;
+
+  /// Checks a replacement URL before it is saved. A reachable empty or
+  /// incompatible JSON file is not treated as a valid Live TV source.
+  Future<int> validateLiveTvUrl(String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || !uri.isScheme('https') || !uri.hasAuthority) {
+      throw const FormatException('Enter a valid HTTPS URL to a Live TV JSON file.');
+    }
+    try {
+      final response = await _dio.get<dynamic>(uri.toString());
+      final data = response.data is String
+          ? jsonDecode(response.data as String) : response.data;
+      final channels = CatalogParser.parse(data, type: 'livetv',
+          category: 'Live TV', sourceUrl: uri.toString());
+      if (channels.isEmpty) {
+        throw const FormatException(
+            'The JSON was downloaded, but no playable channels were found. Check its structure.');
+      }
+      return channels.length;
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 404) {
+        throw const FormatException('HTTP 404: File not found. Check repository, branch, folder and filename.');
+      }
+      if (status != null) {
+        throw FormatException('HTTP $status: Could not download Live TV JSON.');
+      }
+      throw FormatException('Unable to reach URL: ${e.message ?? 'network error'}');
+    }
+  }
 
   static Future<List<CatalogServer>> availableServers() async {
     final data = jsonDecode(await rootBundle.loadString(catalogConfigAsset)) as Map;
@@ -59,47 +99,103 @@ class ExternalCatalogService {
     if (server.maintenance) {
       throw StateError('${server.name} is under maintenance.');
     }
+    // Movie categories are listed first because the supplied TV feeds currently
+    // return 404. A broken TV feed must not hold up otherwise working movies.
     final sources = <({String label, String url, String type})>[
-      (label: 'Live TV', url: server.liveTvUrl, type: 'livetv'),
       ...server.movies.map((c) => (label: c.name, url: c.url, type: 'movie')),
       ...server.series.map((c) => (label: c.name, url: c.url, type: 'series')),
+      (label: 'Live TV', url: server.liveTvUrl, type: 'livetv'),
     ];
-    final problems = <String>[];
-    final items = <MediaItem>[];
-    // Load independently. One missing/broken category cannot hide working content.
-    // Bounded batches avoid opening every large GitHub raw JSON concurrently.
-    for (var i = 0; i < sources.length; i += 3) {
-      final batch = sources.skip(i).take(3).toList();
-      final results = await Future.wait(batch.map((s) async {
-        try {
-          final uri = Uri.parse(s.url);
-          if (uri.scheme != 'https') {
-            throw const FormatException('JSON source must use HTTPS');
+    if (sources.isEmpty) {
+      throw StateError('No catalog sources configured for ${server.name}.');
+    }
+
+    final problemsByIndex = <int, String>{};
+    final loadedByIndex = <int, List<MediaItem>>{};
+    var nextSource = 0;
+
+    List<MediaItem> currentItems() {
+      final seen = <String>{};
+      final unique = <MediaItem>[];
+      for (var i = 0; i < sources.length; i++) {
+        for (final item in loadedByIndex[i] ?? <MediaItem>[]) {
+          if (seen.add(item.id)) {
+            unique.add(item);
           }
-          final response = await _dio.get<dynamic>(s.url);
-          final body = response.data is String ? jsonDecode(response.data as String) : response.data;
-          return CatalogParser.parse(body, type: s.type, category: s.label, sourceUrl: s.url);
-        } catch (e) {
-          problems.add('${s.label}: ${_shortError(e)}');
-          return <MediaItem>[];
         }
-      }));
-      for (final list in results) { items.addAll(list); }
-      onProgress?.call(List<MediaItem>.unmodifiable(items), List<String>.unmodifiable(problems));
+      }
+      return unique;
     }
-    // Same source record may occur twice; retain category-distinct records.
-    final seen = <String>{};
-    final unique = items.where((m) => seen.add(m.id)).toList();
-    if (unique.isEmpty && problems.isNotEmpty) {
-      throw StateError('No catalog could be loaded from ${server.name}. ${problems.take(3).join(' | ')}');
+
+    void publish() {
+      onProgress?.call(
+        List<MediaItem>.unmodifiable(currentItems()),
+        List<String>.unmodifiable([
+          for (var i = 0; i < sources.length; i++)
+            if (problemsByIndex.containsKey(i)) problemsByIndex[i]!,
+        ]),
+      );
     }
-    return CatalogLoadResult(unique, problems);
+
+    // At most three downloads at a time; publish EACH completed source rather
+    // than waiting for the slowest source in a batch to finish.
+    Future<void> worker() async {
+      while (nextSource < sources.length) {
+        final index = nextSource++;
+        final source = sources[index];
+        try {
+          final uri = Uri.tryParse(source.url);
+          if (uri == null || !uri.isScheme('https') || !uri.hasAuthority) {
+            throw const FormatException('Catalog source must be a valid HTTPS URL');
+          }
+          final response = await _dio.get<dynamic>(source.url);
+          final body = response.data is String
+              ? jsonDecode(response.data as String) : response.data;
+          final parsed = await compute(_parseCatalogTask, <String, dynamic>{
+            'body': body,
+            'type': source.type,
+            'category': source.label,
+            'sourceUrl': source.url,
+          });
+          if (parsed.isEmpty) {
+            problemsByIndex[index] = '${source.label}: JSON loaded, but no entries were recognized';
+          } else {
+            loadedByIndex[index] = parsed;
+          }
+        } catch (e) {
+          problemsByIndex[index] = '${source.label}: ${_shortError(e)}';
+        }
+        publish();
+      }
+    }
+
+    await Future.wait(List.generate(
+      sources.length < 3 ? sources.length : 3,
+      (_) => worker(),
+    ));
+    final items = currentItems();
+    final problems = [for (var i = 0; i < sources.length; i++)
+      if (problemsByIndex.containsKey(i)) problemsByIndex[i]!];
+    if (items.isEmpty) {
+      throw StateError('No content loaded from ${server.name}. '
+          '${problems.take(4).join(' | ')}');
+    }
+    return CatalogLoadResult(items, problems);
   }
 
   String _shortError(Object e) {
     if (e is DioException) {
       if (e.response?.statusCode != null) {
         return 'HTTP ${e.response!.statusCode}';
+      }
+      final description = '${e.message ?? ''} ${e.error ?? ''}'.toLowerCase();
+      if (description.contains('permission denied') ||
+          description.contains('operation not permitted')) {
+        return 'Network permission denied. Check Android INTERNET permission.';
+      }
+      if (description.contains('failed host lookup') ||
+          description.contains('socketexception')) {
+        return 'Cannot reach host (DNS/network). Check Wi-Fi/mobile data.';
       }
       return e.message ?? 'network connection failed';
     }

@@ -148,10 +148,25 @@ class _CatalogContent extends StatelessWidget {
               Text(app.error!, textAlign: TextAlign.center), const SizedBox(height: 12),
               FilledButton(onPressed: app.refresh, child: const Text('Retry'))]))))
         else ...[
+          if (app.loading && catalog.isNotEmpty)
+            const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 2,
+              color: AppColors.teal)),
           if (app.warnings.isNotEmpty) SliverToBoxAdapter(child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            child: Text('${app.currentServer}: ${app.warnings.length} category feeds unavailable. Pull to retry.',
-              style: const TextStyle(color: Colors.orangeAccent, fontSize: 12)))),
+            child: InkWell(
+              onTap: () => showDialog<void>(context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: Text('${app.currentServer} — Source diagnostics'),
+                  content: SizedBox(width: 540, child: SingleChildScrollView(
+                    child: SelectableText(app.warnings.join('\n\n')))),
+                  actions: [TextButton(onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Close'))],
+                )),
+              child: Padding(padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text('${app.currentServer}: ${app.warnings.length} sources unavailable. Tap for details.',
+                  style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
+            ),
+          )),
           if (!hasFilter && catalog.isNotEmpty) SliverToBoxAdapter(
             child: _HeroBanner(movie: catalog.firstWhere((m) => m.isFeatured, orElse: () => catalog.first), onTap: onSelect)),
           SliverToBoxAdapter(child: SizedBox(height: 58, child: ListView.separated(

@@ -25,6 +25,8 @@ jobs:
         run: flutter create --project-name mystreamflix_flutter --org com.mystreamflix --platforms=android,ios,windows .
       - name: Add Android network permission
         run: python3 scripts/configure_android.py
+      - name: Verify Android content network permissions
+        run: python3 scripts/verify_android_manifest.py
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
       - run: dart format lib test

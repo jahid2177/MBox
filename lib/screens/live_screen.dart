@@ -168,7 +168,7 @@ class _LiveScreenState extends State<LiveScreen> {
                   FilledButton(onPressed: app.refresh, child: const Text('Retry')),
                   OutlinedButton.icon(
                     onPressed: _editLiveTvSource,
-                    icon: const Icon(Icons.edit_link),
+                    icon: const Icon(Icons.edit_outlined),
                     label: const Text('Change Live TV URL')),
                 ]),
               ],

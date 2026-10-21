@@ -1,157 +1,268 @@
 import 'package:flutter/material.dart';
+
 import '../main.dart';
 import '../models/media_item.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/media_widgets.dart';
-import 'admin_screen.dart';
-import 'settings_screen.dart';
 import 'about_screen.dart';
+import 'admin_screen.dart';
 import 'auth_screen.dart';
 import 'detail_screen.dart';
 import 'live_screen.dart';
 import 'profile_screen.dart';
+import 'settings_screen.dart';
 
+/// Netflix-inspired navigation and content discovery. All titles and images
+/// are from the active JSON server, never seeded or substituted.
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
+
   @override
   State<ShellScreen> createState() => _ShellScreenState();
 }
 
 class _ShellScreenState extends State<ShellScreen> {
-  int tab = 0;
-  static const labels = ['Home', 'Movies', 'Series', 'Live TV', 'My List', 'Settings', 'About'];
+  static const labels = [
+    'Home', 'Movies', 'Series', 'Live TV', 'My List', 'Settings', 'About',
+  ];
   static const icons = [
-    Icons.home_rounded, Icons.movie_creation_outlined, Icons.tv_outlined,
-    Icons.live_tv_outlined, Icons.bookmark_outline,
+    Icons.home_rounded, Icons.movie_rounded, Icons.tv_rounded,
+    Icons.live_tv_rounded, Icons.bookmark_outline_rounded,
     Icons.settings_outlined, Icons.info_outline_rounded,
   ];
 
-  void changeTab(int next) => setState(() {
-    tab = next;
-    genre = 'All';
-    visibleLimit = 120;
-  });
+  int tab = 0;
   String search = '';
   String genre = 'All';
-  int visibleLimit = 120;
+  int visibleLimit = 72;
   bool searchOpen = false;
   final searchController = TextEditingController();
 
   @override
-  void dispose() { searchController.dispose(); super.dispose(); }
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void changeTab(int next) {
+    setState(() {
+      tab = next;
+      genre = 'All';
+      visibleLimit = 72;
+    });
+  }
 
   Future<void> openDetail(MediaItem movie) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(movie: movie)));
+    await Navigator.push<void>(context,
+      MaterialPageRoute(builder: (_) => DetailScreen(movie: movie)));
   }
 
   Future<void> showLogin() async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen()));
+    await Navigator.push<void>(context,
+      MaterialPageRoute(builder: (_) => const AuthScreen()));
   }
 
   void openProfile() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    Navigator.push<void>(context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-    final wide = androidTvBuild || MediaQuery.sizeOf(context).width >= 880;
-    final compact = MediaQuery.sizeOf(context).width < 460;
+    final size = MediaQuery.sizeOf(context);
+    final wide = androidTvBuild || size.width >= 900;
+    final compact = size.width < 430;
     final page = switch (tab) {
       3 => LiveScreen(onSelect: openDetail, onLogin: showLogin),
-      4 => _SavedContent(onSelect: openDetail, onLogin: showLogin),
+      4 => _SavedContent(onSelect: openDetail),
       5 => SettingsScreen(onOpenLiveTv: () => changeTab(3)),
       6 => const AboutScreen(),
-      _ => _CatalogContent(tab: tab, search: search, genre: genre,
-          onGenre: (value) => setState(() { genre = value; visibleLimit = 120; }),
-          visibleLimit: visibleLimit, onMore: () => setState(() => visibleLimit += 120),
-          onSelect: openDetail),
+      _ => _BrowseCatalog(
+        tab: tab,
+        search: search,
+        genre: genre,
+        visibleLimit: visibleLimit,
+        onGenre: (next) => setState(() {
+          genre = next;
+          visibleLimit = 72;
+        }),
+        onMore: () => setState(() => visibleLimit += 72),
+        onSelect: openDetail,
+      ),
     };
 
     return Scaffold(
-      drawer: wide ? null : Drawer(child: SafeArea(child: ListView(children: [
-        const Padding(padding: EdgeInsets.fromLTRB(18, 26, 18, 18), child: Text(
-          'MyStreamFlix', style: TextStyle(fontSize: 23, color: AppColors.teal,
-            fontWeight: FontWeight.w800))),
-        for (var i = 0; i < labels.length; i++)
-          ListTile(
-            selected: tab == i,
-            selectedTileColor: AppColors.surface,
-            leading: Icon(icons[i], color: tab == i ? AppColors.teal : null),
-            title: Text(labels[i]),
-            onTap: () { Navigator.pop(context); changeTab(i); },
+      drawer: wide ? null : Drawer(
+        backgroundColor: AppColors.card,
+        child: SafeArea(child: ListView(children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(19, 24, 12, 27),
+            child: Text('MBOX', style: TextStyle(
+              color: AppColors.red, fontSize: 30,
+              fontWeight: FontWeight.w900, letterSpacing: 1)),
           ),
-      ]))),
-      appBar: AppBar(
-        toolbarHeight: wide ? 76 : 61,
-        titleSpacing: compact ? 0 : 16,
-        title: searchOpen ? TextField(
-          autofocus: true, controller: searchController,
-          onChanged: (value) => setState(() { search = value; visibleLimit = 120; }),
-          decoration: const InputDecoration(hintText: 'Search movies and TV shows', prefixIcon: Icon(Icons.search), isDense: true),
-        ) : FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.play_circle_fill_rounded, color: AppColors.teal, size: 29),
-          const SizedBox(width: 5),
-          Text('MyStream', style: TextStyle(fontWeight: FontWeight.w900, fontSize: wide ? 24 : 19)),
-          Text('Flix', style: TextStyle(fontWeight: FontWeight.w900, fontSize: wide ? 24 : 19, color: AppColors.teal)),
+          for (var i = 0; i < labels.length; i++)
+            ListTile(
+              selected: tab == i,
+              selectedTileColor: AppColors.surface,
+              leading: Icon(icons[i],
+                color: tab == i ? AppColors.red : Colors.white70),
+              title: Text(labels[i]),
+              onTap: () {
+                Navigator.pop(context);
+                changeTab(i);
+              },
+            ),
         ])),
+      ),
+      appBar: AppBar(
+        toolbarHeight: wide ? 78 : 62,
+        titleSpacing: compact ? 0 : 16,
+        title: searchOpen
+          ? TextField(
+              autofocus: true,
+              controller: searchController,
+              onChanged: (next) => setState(() {
+                search = next;
+                visibleLimit = 72;
+                if (tab != 0 && tab != 1 && tab != 2) tab = 0;
+              }),
+              decoration: const InputDecoration(
+                hintText: 'Search titles, genres...',
+                prefixIcon: Icon(Icons.search),
+                isDense: true,
+              ),
+            )
+          : wide
+            ? _DesktopNavigation(
+                tab: tab, onTab: changeTab, labels: labels,
+              )
+            : const Align(alignment: Alignment.centerLeft,
+                child: Text('MBOX', style: TextStyle(
+                  fontSize: 25, letterSpacing: 1,
+                  color: AppColors.red, fontWeight: FontWeight.w900))),
         actions: [
-          IconButton(tooltip: 'Refresh content',
+          IconButton(
+            tooltip: 'Refresh content',
             onPressed: app.loading ? null : app.refresh,
-            icon: app.loading ? const SizedBox(width: 19, height: 19,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.teal))
-              : const Icon(Icons.refresh_rounded)),
-          IconButton(tooltip: searchOpen ? 'Close search' : 'Search',
-            onPressed: () => setState(() { searchOpen = !searchOpen; if (!searchOpen) { search = ''; searchController.clear(); } }),
-            icon: Icon(searchOpen ? Icons.close : Icons.search_rounded)),
-          if (app.servers.isNotEmpty) PopupMenuButton<int>(
-            tooltip: 'Select content server',
-            onSelected: (value) { setState(() { genre = 'All'; visibleLimit = 120; }); app.setServer(value); },
-            itemBuilder: (_) => List.generate(app.servers.length, (i) => PopupMenuItem(
-              value: i, child: Row(children: [if (i == app.serverIndex) const Icon(Icons.check, size: 18, color: AppColors.teal),
-              const SizedBox(width: 5), Text(app.servers[i].name)]))),
-            child: Padding(padding: const EdgeInsets.symmetric(horizontal: 7), child: Row(
-              mainAxisSize: MainAxisSize.min, children: [
-                if (compact) const Icon(Icons.dns_outlined, size: 20)
-                else Text(app.currentServer, style: const TextStyle(fontSize: 12)),
-                const Icon(Icons.arrow_drop_down, size: 17)])),
+            icon: app.loading
+              ? const SizedBox(width: 19, height: 19,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.refresh_rounded),
           ),
-          if (app.isAdmin) IconButton(tooltip: 'Admin CMS', onPressed: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const AdminScreen())), icon: const Icon(Icons.admin_panel_settings, color: AppColors.teal)),
-          if (accountsEnabled) Padding(padding: const EdgeInsets.only(right: 8), child: IconButton(
-            onPressed: app.loggedIn ? openProfile : showLogin,
+          IconButton(
+            tooltip: searchOpen ? 'Close search' : 'Search',
+            onPressed: () => setState(() {
+              searchOpen = !searchOpen;
+              if (!searchOpen) {
+                search = '';
+                searchController.clear();
+              }
+            }),
+            icon: Icon(searchOpen ? Icons.close : Icons.search_rounded),
+          ),
+          if (app.servers.isNotEmpty) PopupMenuButton<int>(
+            tooltip: 'Choose content server',
+            onSelected: (value) {
+              setState(() {
+                genre = 'All';
+                visibleLimit = 72;
+              });
+              app.setServer(value);
+            },
+            itemBuilder: (_) => List.generate(app.servers.length, (i) =>
+              PopupMenuItem<int>(value: i, child: Row(children: [
+                if (i == app.serverIndex)
+                  const Icon(Icons.check_rounded, size: 19, color: AppColors.red),
+                const SizedBox(width: 8),
+                Text(app.servers[i].name),
+              ]))),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 12),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (!compact) Text(app.currentServer,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))
+                else const Icon(Icons.dns_outlined, size: 20),
+                const Icon(Icons.arrow_drop_down_rounded, size: 19),
+              ]),
+            ),
+          ),
+          if (app.isAdmin) IconButton(
+            tooltip: 'Admin CMS',
+            onPressed: () => Navigator.push<void>(context,
+              MaterialPageRoute(builder: (_) => const AdminScreen())),
+            icon: const Icon(Icons.admin_panel_settings_rounded),
+          ),
+          if (accountsEnabled) IconButton(
             tooltip: app.loggedIn ? 'Profile' : 'Sign in',
-            icon: CircleAvatar(radius: 16, backgroundColor: AppColors.surface,
-                child: Icon(app.loggedIn ? Icons.person : Icons.person_outline, color: Colors.white, size: 19)),
-          )),
+            onPressed: app.loggedIn ? openProfile : showLogin,
+            icon: const CircleAvatar(radius: 16,
+              backgroundColor: AppColors.surface,
+              child: Icon(Icons.person_rounded, color: Colors.white, size: 19)),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
-      body: Row(children: [
-        if (wide) NavigationRail(
-          selectedIndex: tab, onDestinationSelected: changeTab,
-          labelType: NavigationRailLabelType.all,
-          backgroundColor: AppColors.bg, indicatorColor: AppColors.teal.withValues(alpha: .16),
-          destinations: List.generate(labels.length, (i) => NavigationRailDestination(icon: Icon(icons[i]),
-              selectedIcon: Icon(icons[i], color: AppColors.teal), label: Text(labels[i]))),
-        ),
-        Expanded(child: page),
-      ]),
+      body: page,
       bottomNavigationBar: wide ? null : NavigationBar(
-        backgroundColor: const Color(0xFF101017),
-        height: 69, labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        indicatorColor: AppColors.teal.withValues(alpha: .19),
-        selectedIndex: tab >= 5 ? 4 : tab, onDestinationSelected: changeTab,
+        height: 66,
+        selectedIndex: tab >= 5 ? 0 : tab,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: changeTab,
         destinations: List.generate(5, (i) => NavigationDestination(
-            icon: Icon(icons[i], size: 22), selectedIcon: Icon(icons[i], color: AppColors.teal),
-            label: labels[i], tooltip: labels[i])),
+          icon: Icon(icons[i], size: 22),
+          selectedIcon: Icon(icons[i], color: Colors.white, size: 23),
+          label: labels[i], tooltip: labels[i],
+        )),
       ),
     );
   }
 }
 
-class _CatalogContent extends StatelessWidget {
+class _DesktopNavigation extends StatelessWidget {
+  final int tab;
+  final ValueChanged<int> onTab;
+  final List<String> labels;
+  const _DesktopNavigation({
+    required this.tab, required this.onTab, required this.labels,
+  });
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    const Text('MBOX', style: TextStyle(
+      color: AppColors.red, fontWeight: FontWeight.w900,
+      fontSize: 27, letterSpacing: 1)),
+    const SizedBox(width: 27),
+    Flexible(child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        for (var i = 0; i < labels.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: TextButton(
+              onPressed: () => onTab(i),
+              style: TextButton.styleFrom(
+                foregroundColor: tab == i ? Colors.white : AppColors.muted,
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 13),
+                textStyle: TextStyle(fontSize: 13,
+                  fontWeight: tab == i ? FontWeight.w800 : FontWeight.w500),
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(labels[i]),
+                const SizedBox(height: 3),
+                Container(width: tab == i ? 22 : 0, height: 3,
+                  color: AppColors.red),
+              ]),
+            ),
+          ),
+      ]),
+    )),
+  ]);
+}
+
+class _BrowseCatalog extends StatelessWidget {
   final int tab;
   final String search;
   final String genre;
@@ -159,153 +270,361 @@ class _CatalogContent extends StatelessWidget {
   final VoidCallback onMore;
   final ValueChanged<String> onGenre;
   final ValueChanged<MediaItem> onSelect;
-  const _CatalogContent({required this.tab, required this.search, required this.genre,
-    required this.onGenre, required this.visibleLimit, required this.onMore, required this.onSelect});
+
+  const _BrowseCatalog({required this.tab, required this.search,
+    required this.genre, required this.visibleLimit,
+    required this.onMore, required this.onGenre, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final catalog = app.videos;
-    final selection = catalog.where((m) =>
-      (tab == 0 || (tab == 1 ? !m.isSeries : m.isSeries)) &&
-      (search.isEmpty || m.title.toLowerCase().contains(search.toLowerCase()) ||
-          m.genres.any((g) => g.toLowerCase().contains(search.toLowerCase()))) &&
-      (genre == 'All' || m.genres.any((g) => g.toLowerCase() == genre.toLowerCase()))
-    ).toList();
-    final hasFilter = tab != 0 || genre != 'All' || search.trim().isNotEmpty;
-    final topRated = List<MediaItem>.from(catalog)..sort((a, b) => b.rating.compareTo(a.rating));
+    final base = catalog.where((m) => tab == 0 ||
+      (tab == 1 ? !m.isSeries : m.isSeries)).toList();
+    final keyword = search.trim().toLowerCase();
+    final selection = base.where((m) =>
+      (keyword.isEmpty || m.title.toLowerCase().contains(keyword) ||
+        m.genres.any((g) => g.toLowerCase().contains(keyword))) &&
+      (genre == 'All' || m.genres.any((g) =>
+        g.toLowerCase() == genre.toLowerCase()))).toList();
+    final filtered = keyword.isNotEmpty || genre != 'All';
+    final genres = ['All', ...{for (final m in base) ...m.genres}];
+    final rated = List<MediaItem>.of(base)
+      ..sort((a, b) => b.rating.compareTo(a.rating));
+    final hasResults = selection.isNotEmpty;
+    final featured = hasResults ? selection.firstWhere(
+      (m) => m.isFeatured, orElse: () => selection.first) : null;
+    final title = switch (tab) {
+      1 => 'Movies',
+      2 => 'TV Series',
+      _ => 'Discover stories worth watching',
+    };
+
     return RefreshIndicator(
-      color: AppColors.teal, onRefresh: app.refresh,
+      onRefresh: app.refresh,
       child: CustomScrollView(slivers: [
-        if (app.loading && catalog.isEmpty) const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.teal)))
-        else if (app.error != null && catalog.isEmpty) SliverFillRemaining(
-          child: Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisAlignment: MainAxisAlignment.center,
-            children: [const Icon(Icons.wifi_off, size: 54, color: AppColors.muted), const SizedBox(height: 16),
-              Text(app.error!, textAlign: TextAlign.center), const SizedBox(height: 12),
-              FilledButton(onPressed: app.refresh, child: const Text('Retry'))]))))
+        if (app.loading && catalog.isEmpty)
+          const SliverFillRemaining(
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (app.error != null && catalog.isEmpty)
+          SliverFillRemaining(child: _NetworkError(
+            error: app.error!, onRetry: app.refresh))
         else ...[
-          if (app.loading && catalog.isNotEmpty)
-            const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 2,
-              color: AppColors.teal)),
-          if (app.warnings.isNotEmpty) SliverToBoxAdapter(child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            child: InkWell(
-              onTap: () => showDialog<void>(context: context,
-                builder: (dialogContext) => AlertDialog(
-                  title: Text('${app.currentServer} — Source diagnostics'),
-                  content: SizedBox(width: 540, child: SingleChildScrollView(
-                    child: SelectableText(app.warnings.join('\n\n')))),
-                  actions: [TextButton(onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Close'))],
-                )),
-              child: Padding(padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text('${app.currentServer}: ${app.warnings.length} sources unavailable. Tap for details.',
-                  style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))),
-            ),
+          if (app.loading)
+            const SliverToBoxAdapter(child: LinearProgressIndicator(
+              minHeight: 2, color: AppColors.red)),
+          if (app.warnings.isNotEmpty)
+            SliverToBoxAdapter(child: _SourceWarnings(
+              server: app.currentServer, warnings: app.warnings)),
+          if (featured != null && !filtered)
+            SliverToBoxAdapter(child: _FeaturedHero(
+              movie: featured, onSelect: onSelect)),
+          SliverToBoxAdapter(child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              MediaQuery.sizeOf(context).width >= 700 ? 35 : 17,
+              20, 17, 8),
+            child: Row(children: [
+              Expanded(child: Text(title,
+                style: TextStyle(fontSize:
+                  MediaQuery.sizeOf(context).width >= 700 ? 26 : 21,
+                  fontWeight: FontWeight.w900))),
+              Text('${selection.length} titles',
+                style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+            ]),
           )),
-          if (!hasFilter && catalog.isNotEmpty) SliverToBoxAdapter(
-            child: _HeroBanner(movie: catalog.firstWhere((m) => m.isFeatured, orElse: () => catalog.first), onTap: onSelect)),
-          SliverToBoxAdapter(child: SizedBox(height: 58, child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            itemCount: ['All', ...{for (final m in catalog) ...m.genres}].length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (_, i) {
-              final genres = ['All', ...{for (final m in catalog) ...m.genres}];
-              final active = genre == genres[i];
-              return ChoiceChip(label: Text(genres[i]), selected: active,
-                showCheckmark: false, onSelected: (_) => onGenre(genres[i]),
-                selectedColor: AppColors.teal,
-                labelStyle: TextStyle(fontWeight: FontWeight.w600, color: active ? Colors.black : Colors.white),
-                backgroundColor: AppColors.card, side: BorderSide.none);
-            },
-          ))),
-          if (hasFilter) SliverPadding(padding: const EdgeInsets.all(18), sliver: SliverList(delegate: SliverChildListDelegate([
-            Text('Explore  ·  ${selection.length} titles', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 18),
-                        if (selection.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(50),
-              child: Text('No matching titles found', style: TextStyle(color: AppColors.muted))))
-            else LayoutBuilder(builder: (context, constraints) {
-              final cols = (constraints.maxWidth / 155).floor().clamp(2, 7).toInt();
-              return GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                itemCount: selection.length.clamp(0, visibleLimit).toInt(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols,
-                  childAspectRatio: .55, mainAxisSpacing: 15, crossAxisSpacing: 12),
-                itemBuilder: (_, i) => MediaPoster(item: selection[i], onTap: () => onSelect(selection[i]),
-                  width: double.infinity));
-            }),
-            if (selection.length > visibleLimit) Padding(padding: const EdgeInsets.symmetric(vertical: 20),
-              child: OutlinedButton(onPressed: onMore,
-                child: Text('Load more (${selection.length - visibleLimit} remaining)'))),
-          ])))
-          else SliverList(delegate: SliverChildListDelegate([
-            MediaRow(title: 'Trending Now', items: catalog.take(12).toList(), icon: Icons.local_fire_department, onTap: onSelect),
-            MediaRow(title: 'Popular Movies', items: catalog.where((m) => !m.isSeries).take(18).toList(), icon: Icons.local_movies, onTap: onSelect),
-            MediaRow(title: 'Binge-worthy Series', items: catalog.where((m) => m.isSeries).take(18).toList(), icon: Icons.tv, onTap: onSelect),
-            MediaRow(title: 'Top Rated', items: topRated.take(18).toList(), icon: Icons.star, onTap: onSelect),
-            const SizedBox(height: 24),
-          ])),
+          if (genres.length > 1)
+            SliverToBoxAdapter(child: SizedBox(height: 49,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal:
+                  MediaQuery.sizeOf(context).width >= 700 ? 35 : 17,
+                  vertical: 4),
+                itemCount: genres.length,
+                separatorBuilder: (_, index) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final active = genres[i] == genre;
+                  return ChoiceChip(
+                    label: Text(genres[i]),
+                    selected: active,
+                    showCheckmark: false,
+                    onSelected: (_) => onGenre(genres[i]),
+                    selectedColor: Colors.white,
+                    backgroundColor: AppColors.card,
+                    labelStyle: TextStyle(color: active ? Colors.black : Colors.white,
+                      fontWeight: active ? FontWeight.w800 : FontWeight.w500),
+                    side: const BorderSide(color: Colors.white24),
+                  );
+                },
+              ),
+            )),
+          if (filtered)
+            SliverToBoxAdapter(child: _ResultsGrid(
+              items: selection, visibleLimit: visibleLimit,
+              onMore: onMore, onSelect: onSelect))
+          else ...[
+            if (base.isEmpty)
+              const SliverFillRemaining(child: Center(
+                child: Text('No titles found on this server.',
+                  style: TextStyle(color: AppColors.muted))))
+            else SliverList(delegate: SliverChildListDelegate([
+              MediaRow(title: 'Explore picks', items: base.take(18).toList(),
+                icon: Icons.local_fire_department_outlined, onTap: onSelect),
+              if (tab == 0) ...[
+                MediaRow(title: 'Movies for you',
+                  items: base.where((m) => !m.isSeries).take(18).toList(),
+                  icon: Icons.movie_outlined, onTap: onSelect),
+                MediaRow(title: 'Series to binge',
+                  items: base.where((m) => m.isSeries).take(18).toList(),
+                  icon: Icons.tv_outlined, onTap: onSelect),
+              ],
+              MediaRow(title: 'Highly rated', items:
+                rated.where((m) => m.rating > 0).take(18).toList(),
+                icon: Icons.star_border_rounded, onTap: onSelect),
+              for (final category in genres.skip(1).take(5))
+                MediaRow(title: category,
+                  items: base.where((m) => m.genres.contains(category)).take(18).toList(),
+                  onTap: onSelect),
+              const SizedBox(height: 36),
+            ])),
+          ],
         ],
       ]),
     );
   }
 }
 
-class _HeroBanner extends StatelessWidget {
-  final MediaItem movie;
-  final ValueChanged<MediaItem> onTap;
-  const _HeroBanner({required this.movie, required this.onTap});
+class _ResultsGrid extends StatelessWidget {
+  final List<MediaItem> items;
+  final int visibleLimit;
+  final VoidCallback onMore;
+  final ValueChanged<MediaItem> onSelect;
+  const _ResultsGrid({required this.items, required this.visibleLimit,
+    required this.onMore, required this.onSelect});
+
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width > 800;
-    return SizedBox(height: wide ? 430 : 288, child: Stack(fit: StackFit.expand, children: [
-      ArtImage(url: movie.backdropUrl.isEmpty ? movie.posterUrl : movie.backdropUrl),
-      const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
-        begin: Alignment.topCenter, end: Alignment.bottomCenter,
-        colors: [Colors.transparent, Color(0x4F09090D), Color(0xFF09090D)], stops: [0.2, .52, 1],
-      ))),
-      Padding(padding: const EdgeInsets.fromLTRB(22, 0, 22, 19), child: Column(
-        mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('FEATURED PREMIERE', style: TextStyle(color: AppColors.teal, fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: 11)),
-          const SizedBox(height: 8),
-          Text(movie.title, maxLines: 2, style: TextStyle(fontSize: wide ? 38 : 26, fontWeight: FontWeight.w900, shadows: const [Shadow(blurRadius: 10, color: Colors.black)])),
-          const SizedBox(height: 9),
-          Text('${movie.releaseYear}   ★ ${movie.rating.toStringAsFixed(1)}   ${movie.quality}',
-              style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 14),
-          Row(children: [FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.teal, foregroundColor: Colors.black),
-            onPressed: () => onTap(movie), icon: const Icon(Icons.play_arrow), label: const Text('Watch Now')),
-            const SizedBox(width: 10), OutlinedButton.icon(onPressed: () => onTap(movie),
-              icon: const Icon(Icons.info_outline), label: const Text('More Info'))]),
-        ],
-      )),
+    if (items.isEmpty) {
+      return const Padding(padding: EdgeInsets.all(54),
+        child: Center(child: Text('No matching titles found.',
+          style: TextStyle(color: AppColors.muted))));
+    }
+    final count = items.length < visibleLimit ? items.length : visibleLimit;
+    return Padding(padding: const EdgeInsets.all(18), child: Column(children: [
+      LayoutBuilder(builder: (context, constraints) {
+        final cols = (constraints.maxWidth / 162).floor().clamp(2, 8).toInt();
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: count,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols, childAspectRatio: .58,
+            mainAxisSpacing: 16, crossAxisSpacing: 12),
+          itemBuilder: (_, i) => MediaPoster(
+            item: items[i], width: double.infinity,
+            onTap: () => onSelect(items[i])),
+        );
+      }),
+      if (items.length > count) Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: OutlinedButton(
+          onPressed: onMore,
+          child: Text('Show more (${items.length - count} remaining)'),
+        ),
+      ),
     ]));
   }
 }
 
+class _FeaturedHero extends StatelessWidget {
+  final MediaItem movie;
+  final ValueChanged<MediaItem> onSelect;
+  const _FeaturedHero({required this.movie, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= 750;
+    return SizedBox(
+      height: wide ? 510 : 424,
+      child: Stack(fit: StackFit.expand, children: [
+        ArtImage(url: movie.backdropUrl.isNotEmpty ?
+          movie.backdropUrl : movie.posterUrl),
+        const DecoratedBox(decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft, end: Alignment.centerRight,
+            colors: [Color(0xE7000000), Color(0x93000000), Colors.transparent],
+            stops: [0, .44, 1],
+          ),
+        )),
+        const DecoratedBox(decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Color(0x33000000), Colors.transparent, AppColors.bg],
+            stops: [0, .48, 1],
+          ),
+        )),
+        Padding(
+          padding: EdgeInsets.fromLTRB(wide ? 45 : 20, 0, 22, wide ? 50 : 30),
+          child: Align(alignment: Alignment.bottomLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: wide ? 585 : 350),
+              child: Column(mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(width: 4, height: 19, color: AppColors.red),
+                  const SizedBox(width: 8),
+                  const Text('FEATURED ON MBOX',
+                    style: TextStyle(letterSpacing: 2, fontSize: 10,
+                      fontWeight: FontWeight.w900)),
+                ]),
+                const SizedBox(height: 13),
+                Text(movie.title,
+                  maxLines: 3, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: wide ? 46 : 31,
+                    height: 1.05, fontWeight: FontWeight.w900,
+                    shadows: const [Shadow(color: Colors.black87, blurRadius: 17)],
+                  )),
+                const SizedBox(height: 12),
+                Wrap(spacing: 13, runSpacing: 7, children: [
+                  if (movie.releaseYear > 0) Text('${movie.releaseYear}'),
+                  if (movie.rating > 0) Text('★ ${movie.rating.toStringAsFixed(1)}'),
+                  if (movie.quality.isNotEmpty) Text(movie.quality),
+                  Text(movie.isSeries ? 'Series' : 'Movie'),
+                ]),
+                if (movie.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(movie.description, maxLines: wide ? 3 : 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFFDFDFDF),
+                      fontSize: 13, height: 1.45)),
+                ],
+                const SizedBox(height: 20),
+                Wrap(spacing: 10, runSpacing: 10, children: [
+                  FilledButton.icon(
+                    onPressed: () => onSelect(movie),
+                    icon: const Icon(Icons.play_arrow_rounded, size: 25),
+                    label: const Text('Play', style: TextStyle(fontWeight: FontWeight.w800)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => onSelect(movie),
+                    icon: const Icon(Icons.info_outline_rounded),
+                    label: const Text('More info'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xB4464646),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _SourceWarnings extends StatelessWidget {
+  final String server;
+  final List<String> warnings;
+  const _SourceWarnings({required this.server, required this.warnings});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+    child: InkWell(
+      onTap: () => showDialog<void>(context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('$server — Source diagnostics'),
+          content: SizedBox(width: 540,
+            child: SingleChildScrollView(
+              child: SelectableText(warnings.join('\n\n')))),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'))],
+        )),
+      child: Padding(padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(children: [
+          const Icon(Icons.warning_amber_rounded,
+            color: Colors.orangeAccent, size: 17),
+          const SizedBox(width: 8),
+          Expanded(child: Text(
+            '$server: ${warnings.length} sources unavailable. View details',
+            style: const TextStyle(fontSize: 12, color: Colors.orangeAccent))),
+        ])),
+    ),
+  );
+}
+
+class _NetworkError extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
+  const _NetworkError({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(padding: const EdgeInsets.all(24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.wifi_off_rounded, size: 52, color: AppColors.muted),
+        const SizedBox(height: 16),
+        const Text('Unable to load titles',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(error, textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.muted)),
+        const SizedBox(height: 14),
+        FilledButton(onPressed: onRetry, child: const Text('Retry')),
+      ])),
+  );
+}
+
 class _SavedContent extends StatelessWidget {
   final ValueChanged<MediaItem> onSelect;
-  final VoidCallback onLogin;
-  const _SavedContent({required this.onSelect, required this.onLogin});
+  const _SavedContent({required this.onSelect});
+
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
-        if (app.watchlist.isEmpty) {
-      return const Center(child: Text('No saved movies yet.\nTap the + button on a movie.',
-        textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)));
+    final saved = app.watchlist;
+    if (saved.isEmpty) {
+      return const Center(child: Column(mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.bookmark_outline_rounded,
+            size: 66, color: Colors.white30),
+          SizedBox(height: 17),
+          Text('Your list is empty', style: TextStyle(
+            fontWeight: FontWeight.w800, fontSize: 22)),
+          SizedBox(height: 7),
+          Text('Add movies and series to watch them later.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted)),
+        ],
+      ));
     }
     return CustomScrollView(slivers: [
-      const SliverPadding(padding: EdgeInsets.all(20), sliver: SliverToBoxAdapter(child:
-        Text('My List', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)))),
-      SliverPadding(padding: const EdgeInsets.symmetric(horizontal: 18), sliver: SliverLayoutBuilder(builder: (context, constraints) {
-        final cols = (constraints.crossAxisExtent / 160).floor().clamp(2, 7).toInt();
-        return SliverGrid.builder(gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: cols, childAspectRatio: .55, crossAxisSpacing: 12, mainAxisSpacing: 12),
-          itemCount: app.watchlist.length,
-          itemBuilder: (_, i) => MediaPoster(item: app.watchlist[i], onTap: () => onSelect(app.watchlist[i]), width: double.infinity));
-      })),
+      const SliverToBoxAdapter(child: Padding(
+        padding: EdgeInsets.fromLTRB(22, 30, 16, 22),
+        child: Text('My List', style: TextStyle(
+          fontSize: 27, fontWeight: FontWeight.w900)))),
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        sliver: SliverLayoutBuilder(builder: (context, constraints) {
+          final cols = (constraints.crossAxisExtent / 162).floor().clamp(2, 8).toInt();
+          return SliverGrid.builder(
+            itemCount: saved.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols, childAspectRatio: .58,
+              crossAxisSpacing: 12, mainAxisSpacing: 15),
+            itemBuilder: (_, i) => MediaPoster(
+              item: saved[i], width: double.infinity,
+              onTap: () => onSelect(saved[i])),
+          );
+        }),
+      ),
     ]);
   }
 }

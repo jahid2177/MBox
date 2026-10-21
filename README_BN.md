@@ -1,41 +1,48 @@
-# MBox Windows / Android / Android TV — flutter analyze fix
+# MBox — Netflix-inspired Flutter UI (Android / Windows / Android TV)
 
-## সমস্যার কারণ
+এটি **আপনার বর্তমান MBox GitHub প্রজেক্টে UI Replace করার জন্য** তৈরি, সম্পূর্ণ Backend বা Player পরিবর্তনের জন্য নয়।
 
-তিনটি Build-ই একই Flutter `lib/` সোর্স ব্যবহার করে। বর্তমান `MBox`-এ:
+## কী বদলেছে
 
-1. `lib/screens/settings_screen.dart`: unused `../state/app_state.dart` import
-2. একই ফাইলে Snackbar দেখানোর `if (context.mounted)`-এ `{}` নেই
-3. `lib/state/app_state.dart`: preference reset-এর async callback-এ explicit return নেই
+- `lib/theme/app_theme.dart`: সিনেমাটিক প্রায়-কালো background, লাল accent, পরিষ্কার dark theme। পূর্বের ফাইলগুলো যাতে কাজ করে তার জন্য `AppColors.teal`-এর compatibility alias বজায় রয়েছে।
+- `lib/screens/shell_screen.dart`: বড় Featured Hero, Netflix-inspired content rows, horizontal desktop/TV navigation, মোবাইলে bottom navigation + drawer, Search, Server Switch, Refresh, Settings/About।
+- `lib/widgets/media_widgets.dart`: Poster cards, title/rating, focus border/scale এবং remote/keyboard focus।
+- `lib/screens/detail_screen.dart`: Cinematic detail banner, Play, My List, genre/cast, episode list, stream source chooser।
+- `lib/screens/live_screen.dart`: Live TV channel card layout, focus indication, error/URL change controls।
 
-`flutter analyze --no-fatal-infos` Warning-এ exit code 1 দেয়।
+## GitHub-এ কীভাবে যুক্ত করবেন
 
-## সহজ পদ্ধতি: GitHub Actions থেকে সরাসরি সোর্স Fix
+এই ZIP-এর `lib/` ফোল্ডারটি আপনার **সর্বশেষ** `MBox` Repository-এর মূল ফোল্ডারে merge করে একই নামের পাঁচটি ফাইল replace করুন। অন্য ফাইল Replace করবেন না।
 
-1. ZIP খুলে `.github/workflows/fix-mbox-analyzer.yml` এবং `scripts/fix_mbox_analyzer.py` ফাইল দুটি **একই path-এ** MBox GitHub Repository-তে আপলোড ও Commit করুন।
-2. GitHub → Actions → **Fix MBox Flutter Analyze (All Platforms)** → **Run workflow** নির্বাচন করুন।
-3. এই Workflow দুটি Dart ফাইলের সংশোধন **নিজে Commit এবং Push** করবে। শুধু Script upload করলে সমস্যা ঠিক হয় না।
-4. নতুন Commit হয়েছে নিশ্চিত করে Windows, Android APK ও Android TV তিনটি Build আবার Run করুন।
-
-GitHub Actions-এর `GITHUB_TOKEN` write access বন্ধ থাকলে Repository Settings → Actions → General → Workflow permissions থেকে Read and write permissions অনুমোদন দিতে হতে পারে। Branch protection থাকলে সরাসরি push ব্যর্থ হবে; সে ক্ষেত্রে স্থানীয় পদ্ধতি ব্যবহার করুন অথবা PR মার্জ করুন।
-
-## বিকল্প পদ্ধতি: নিজের PC থেকে Fix
-
-প্রজেক্টের root directory-তে দুটি ফাইল upload/copy করে চালান:
-
-```bash
-python3 scripts/fix_mbox_analyzer.py
-flutter analyze --no-fatal-infos
-git add lib/screens/settings_screen.dart lib/state/app_state.dart
-git commit -m "fix: resolve MBox analyzer warnings"
-git push
+```
+lib/theme/app_theme.dart
+lib/widgets/media_widgets.dart
+lib/screens/shell_screen.dart
+lib/screens/detail_screen.dart
+lib/screens/live_screen.dart
 ```
 
-Windows PowerShell-এ `python` ব্যবহার করতে হতে পারে।
+এরপর তিনটি Build চালান:
 
-## গুরুত্বপূর্ণ
+```
+flutter analyze --no-fatal-infos
+flutter test
+flutter build apk --release --target-platform android-arm64
+```
 
-- Original Player, TV UI, JSON server URL, Android/Windows Workflow পরিবর্তন করা হয় না।
-- Fix script একাধিকবার চালালে duplicate পরিবর্তন করবে না।
-- এই প্যাকেজের Python patch-এর fixture tests চালানো হয়েছে; Flutter SDK না থাকায় প্রকৃত Flutter Analyze / APK/EXE Build যাচাই করা যায়নি।
-- ভবিষ্যতে সোর্সের গঠন বদলালে Script অনুমান করে Code পরিবর্তন না করে error দেখাবে।
+Android TV-এর জন্য আপনার আগের workflow-তে ব্যবহৃত `--dart-define=ANDROID_TV=true` ফ্ল্যাগ বজায় রাখবেন। Windows Workflow-ও আগেরটি ব্যবহার করবেন।
+
+## কোনগুলো অপরিবর্তিত
+
+- Server 1/Server 2-এর সব Movie, Series ও Live TV JSON URL
+- JSON parsing, loading ও diagnostic logic
+- Favorites/My List-এর local storage
+- Login, Admin, Account API
+- Settings, Player এবং streaming/episode backend code
+- Android ও Android TV build workflows
+
+**জরুরি:** আপনার আগে দেওয়া Live TV feed-এ 404 দেখা গিয়েছিল। শুধু ডিজাইন পরিবর্তন করলে অনুপস্থিত JSON ফাইল ফিরে আসবে না। Live TV কাজ করার জন্য সঠিক ও অ্যাক্সেসযোগ্য JSON URL দিতে হবে।
+
+**পরীক্ষা সীমাবদ্ধতা:** ফাইলগুলোতে structural bracket ও import path পরীক্ষা করা হয়েছে। এই পরিবেশে Flutter SDK না থাকায় `flutter analyze`, Widget Test ও APK build বাস্তবে চালানো যায়নি।
+
+নিজের ব্র্যান্ডিং MBOX রেখেই Netflix-inspired Layout করা হয়েছে; Netflix-এর কোনো logo বা copyright image কপি করা হয়নি। সব কনটেন্টের artwork অ্যাপের আসল JSON source থেকে নেওয়া হয়।

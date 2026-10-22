@@ -1,4 +1,8 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
+import '../utils/catalog_sort.dart';
 
 import '../main.dart';
 import '../models/media_item.dart';
@@ -22,7 +26,7 @@ class ShellScreen extends StatefulWidget {
   State<ShellScreen> createState() => _ShellScreenState();
 }
 
-class _ShellScreenState extends State<ShellScreen> {
+class _ShellScreenState extends State<ShellScreen> with WindowListener {
   static const labels = [
     'Home', 'Movies', 'Series', 'Live TV', 'My List', 'Settings', 'About',
   ];
@@ -33,6 +37,8 @@ class _ShellScreenState extends State<ShellScreen> {
   ];
 
   int tab = 0;
+  CatalogSort sort = CatalogSort.newest;
+  bool _exitDialogOpen = false;
   String search = '';
   String genre = 'All';
   int visibleLimit = 72;
@@ -40,7 +46,49 @@ class _ShellScreenState extends State<ShellScreen> {
   final searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    if (Platform.isWindows) windowManager.addListener(this);
+  }
+
+  @override
+  void onWindowClose() {
+    _confirmExit();
+  }
+
+  Future<void> _confirmExit() async {
+    if (_exitDialogOpen || !mounted) return;
+    _exitDialogOpen = true;
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Close MBox?'),
+        content: const Text('Are you sure you want to exit MBox?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Exit'),
+          ),
+        ],
+      ),
+    );
+    _exitDialogOpen = false;
+    if (!mounted || leave != true) return;
+    if (Platform.isWindows) {
+      await windowManager.setPreventClose(false);
+      await windowManager.destroy();
+    } else {
+      await SystemNavigator.pop();
+    }
+  }
+
+  @override
   void dispose() {
+    if (Platform.isWindows) windowManager.removeListener(this);
     searchController.dispose();
     super.dispose();
   }
@@ -77,10 +125,15 @@ class _ShellScreenState extends State<ShellScreen> {
     final page = switch (tab) {
       3 => LiveScreen(onSelect: openDetail, onLogin: showLogin),
       4 => _SavedContent(onSelect: openDetail),
-      5 => SettingsScreen(onOpenLiveTv: () => changeTab(3)),
+      5 => const SettingsScreen(),
       6 => const AboutScreen(),
       _ => _BrowseCatalog(
         tab: tab,
+        sort: sort,
+        onSort: (next) => setState(() {
+          sort = next;
+          visibleLimit = 72;
+        }),
         search: search,
         genre: genre,
         visibleLimit: visibleLimit,
@@ -93,7 +146,12 @@ class _ShellScreenState extends State<ShellScreen> {
       ),
     };
 
-    return Scaffold(
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _confirmExit();
+      },
+      child: Scaffold(
       drawer: wide ? null : Drawer(
         backgroundColor: AppColors.card,
         child: SafeArea(child: ListView(children: [
@@ -217,7 +275,7 @@ class _ShellScreenState extends State<ShellScreen> {
           label: labels[i], tooltip: labels[i],
         )),
       ),
-    );
+    ));
   }
 }
 
@@ -263,6 +321,8 @@ class _DesktopNavigation extends StatelessWidget {
 }
 
 class _BrowseCatalog extends StatelessWidget {
+  final CatalogSort sort;
+  final ValueChanged<CatalogSort> onSort;
   final int tab;
   final String search;
   final String genre;
@@ -271,7 +331,8 @@ class _BrowseCatalog extends StatelessWidget {
   final ValueChanged<String> onGenre;
   final ValueChanged<MediaItem> onSelect;
 
-  const _BrowseCatalog({required this.tab, required this.search,
+  const _BrowseCatalog({required this.tab, required this.sort,
+    required this.onSort, required this.search,
     required this.genre, required this.visibleLimit,
     required this.onMore, required this.onGenre, required this.onSelect});
 
@@ -279,16 +340,20 @@ class _BrowseCatalog extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final catalog = app.videos;
-    final base = catalog.where((m) => tab == 0 ||
-      (tab == 1 ? !m.isSeries : m.isSeries)).toList();
+    final base = sortCatalog(catalog.where((m) => tab == 0 ||
+      (tab == 1 ? !m.isSeries : m.isSeries)), sort);
     final keyword = search.trim().toLowerCase();
-    final selection = base.where((m) =>
+    final selection = sortCatalog(base.where((m) =>
       (keyword.isEmpty || m.title.toLowerCase().contains(keyword) ||
         m.genres.any((g) => g.toLowerCase().contains(keyword))) &&
       (genre == 'All' || m.genres.any((g) =>
-        g.toLowerCase() == genre.toLowerCase()))).toList();
-    final filtered = keyword.isNotEmpty || genre != 'All';
+        g.toLowerCase() == genre.toLowerCase()))), sort);
+    final filtered = keyword.isNotEmpty || genre != 'All' ||
+        sort != CatalogSort.newest;
     final genres = ['All', ...{for (final m in base) ...m.genres}];
+    final years = base.where((m) => m.releaseYear > 0)
+        .map((m) => m.releaseYear).toSet().toList()
+      ..sort((a, b) => b.compareTo(a));
     final rated = List<MediaItem>.of(base)
       ..sort((a, b) => b.rating.compareTo(a.rating));
     final hasResults = selection.isNotEmpty;
@@ -329,6 +394,16 @@ class _BrowseCatalog extends StatelessWidget {
                 style: TextStyle(fontSize:
                   MediaQuery.sizeOf(context).width >= 700 ? 26 : 21,
                   fontWeight: FontWeight.w900))),
+              PopupMenuButton<CatalogSort>(
+                tooltip: 'Sort movies and series',
+                initialValue: sort,
+                onSelected: onSort,
+                icon: const Icon(Icons.sort_rounded),
+                itemBuilder: (_) => CatalogSort.values
+                  .map((value) => PopupMenuItem<CatalogSort>(
+                    value: value, child: Text(value.label),
+                  )).toList(),
+              ),
               Text('${selection.length} titles',
                 style: const TextStyle(color: AppColors.muted, fontSize: 12)),
             ]),
@@ -367,6 +442,22 @@ class _BrowseCatalog extends StatelessWidget {
               const SliverFillRemaining(child: Center(
                 child: Text('No titles found on this server.',
                   style: TextStyle(color: AppColors.muted))))
+            else if (tab == 1 || tab == 2)
+              SliverList(delegate: SliverChildListDelegate([
+                for (final year in years)
+                  MediaRow(
+                    title: '$year',
+                    items: base.where((m) => m.releaseYear == year).toList(),
+                    onTap: onSelect,
+                  ),
+                if (base.any((m) => m.releaseYear <= 0))
+                  MediaRow(
+                    title: 'Year not listed',
+                    items: base.where((m) => m.releaseYear <= 0).toList(),
+                    onTap: onSelect,
+                  ),
+                const SizedBox(height: 36),
+              ]))
             else SliverList(delegate: SliverChildListDelegate([
               MediaRow(title: 'Explore picks', items: base.take(18).toList(),
                 icon: Icons.local_fire_department_outlined, onTap: onSelect),

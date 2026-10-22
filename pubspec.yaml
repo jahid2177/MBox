@@ -17,6 +17,7 @@ dependencies:
   # Android 2.5.0/2.5.1 can crash release APKs under R8's JNI obfuscation.
   # Keep the pre-JNI implementation until a verified upstream fix is available.
   shared_preferences_android: 2.4.28
+  window_manager: ^0.5.2
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7

@@ -5,10 +5,17 @@ import 'services/api_service.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 import 'screens/shell_screen.dart';
+import 'screens/mbox_splash_screen.dart';
+import 'dart:io' show Platform;
+import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  if (Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+  }
   await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
   ApiService? service;
   String? initError;
@@ -35,8 +42,10 @@ class MyStreamFlixApp extends StatelessWidget {
   const MyStreamFlixApp({super.key, this.initialError});
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'MyStreamFlix', debugShowCheckedModeBanner: false, theme: buildAppTheme(),
-    home: initialError == null ? const ShellScreen() : Scaffold(
+    title: 'MBox', debugShowCheckedModeBanner: false, theme: buildAppTheme(),
+    home: initialError == null
+      ? const MBoxSplashScreen(next: ShellScreen())
+      : Scaffold(
       body: Center(child: Padding(
         padding: const EdgeInsets.all(25), child: Text('Configuration error: $initialError'),
       )),

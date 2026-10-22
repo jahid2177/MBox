@@ -38,19 +38,38 @@ class CatalogLoadResult {
   final List<String> problems;
 }
 
-// Parse large catalogs outside the Flutter UI isolate so scrolling, navigation
-// and progress updates remain responsive on Android phones.
-List<MediaItem> _parseCatalogTask(Map<String, dynamic> task) {
-  return CatalogParser.parse(task['body'],
-    type: task['type'] as String,
-    category: task['category'] as String,
-    sourceUrl: task['sourceUrl'] as String);
+// Decode large (14-20 MB) catalog parts in a background isolate, not on
+// Flutter's UI thread. A manifest is distinguished from actual media items.
+class _ParsedCatalogResponse {
+  const _ParsedCatalogResponse(this.items, this.parts);
+
+  final List<MediaItem> items;
+  final List<String>? parts;
+}
+
+_ParsedCatalogResponse _parseCatalogTask(Map<String, dynamic> task) {
+  final raw = task['body'];
+  final data = raw is String ? jsonDecode(raw) : raw;
+  final sourceUrl = task['sourceUrl'] as String;
+  final parts = CatalogParser.manifestParts(data, sourceUrl: sourceUrl);
+  if (parts != null) {
+    return _ParsedCatalogResponse(const [], parts);
+  }
+  return _ParsedCatalogResponse(
+    CatalogParser.parse(data,
+      type: task['type'] as String,
+      category: task['category'] as String,
+      sourceUrl: sourceUrl),
+    null,
+  );
 }
 
 class ExternalCatalogService {
   ExternalCatalogService({Dio? client}) : _dio = client ?? Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 12),
-    receiveTimeout: const Duration(seconds: 45),
+    // Individual English Series parts are 14-19 MB; slower connections may
+    // need more than the old 45-second timeout.
+    receiveTimeout: const Duration(minutes: 2),
     responseType: ResponseType.json,
     headers: const {'Accept': 'application/json'},
   ));
@@ -99,11 +118,17 @@ class ExternalCatalogService {
     if (server.maintenance) {
       throw StateError('${server.name} is under maintenance.');
     }
-    // Movie categories are listed first because the supplied TV feeds currently
-    // return 404. A broken TV feed must not hold up otherwise working movies.
+    // Start the first movie and the first series in parallel. This avoids a
+    // large movie catalog queue starving English TV Series on slow devices.
+    final movieSources = server.movies.map((c) =>
+      (label: c.name, url: c.url, type: 'movie')).toList();
+    final seriesSources = server.series.map((c) =>
+      (label: c.name, url: c.url, type: 'series')).toList();
     final sources = <({String label, String url, String type})>[
-      ...server.movies.map((c) => (label: c.name, url: c.url, type: 'movie')),
-      ...server.series.map((c) => (label: c.name, url: c.url, type: 'series')),
+      if (movieSources.isNotEmpty) movieSources.first,
+      if (seriesSources.isNotEmpty) seriesSources.first,
+      ...movieSources.skip(1),
+      ...seriesSources.skip(1),
       (label: 'Live TV', url: server.liveTvUrl, type: 'livetv'),
     ];
     if (sources.isEmpty) {
@@ -137,30 +162,82 @@ class ExternalCatalogService {
       );
     }
 
-    // At most three downloads at a time; publish EACH completed source rather
-    // than waiting for the slowest source in a batch to finish.
+    // Receive text rather than asking Dio to JSON-decode a huge part on the
+    // UI isolate. The isolate handles both decoding and conversion to MediaItem.
+    Future<_ParsedCatalogResponse> downloadAndParse(
+      String url, String type, String category, String sourceId,
+    ) async {
+      final uri = Uri.tryParse(url);
+      if (uri == null || !uri.isScheme('https') || !uri.hasAuthority) {
+        throw const FormatException('Catalog URL must be a valid HTTPS URL');
+      }
+      final response = await _dio.get<String>(url,
+        options: Options(responseType: ResponseType.plain));
+      final body = response.data;
+      if (body == null || body.trim().isEmpty) {
+        throw const FormatException('JSON file is empty');
+      }
+      return compute(_parseCatalogTask, <String, dynamic>{
+        'body': body,
+        'type': type,
+        'category': category,
+        // For a multipart catalog, IDs must be independent of the part URL,
+        // so moving a series between parts does not break its Favorites ID.
+        'sourceUrl': sourceId,
+      });
+    }
+
+    // At most two source downloads are active to reduce memory pressure on
+    // Android/TV. Multipart files are fetched sequentially and each completed
+    // part is published immediately, before the other parts finish.
     Future<void> worker() async {
       while (nextSource < sources.length) {
         final index = nextSource++;
         final source = sources[index];
         try {
-          final uri = Uri.tryParse(source.url);
-          if (uri == null || !uri.isScheme('https') || !uri.hasAuthority) {
-            throw const FormatException('Catalog source must be a valid HTTPS URL');
-          }
-          final response = await _dio.get<dynamic>(source.url);
-          final body = response.data is String
-              ? jsonDecode(response.data as String) : response.data;
-          final parsed = await compute(_parseCatalogTask, <String, dynamic>{
-            'body': body,
-            'type': source.type,
-            'category': source.label,
-            'sourceUrl': source.url,
-          });
-          if (parsed.isEmpty) {
-            problemsByIndex[index] = '${source.label}: JSON loaded, but no entries were recognized';
+          final main = await downloadAndParse(
+            source.url, source.type, source.label, source.url);
+          if (main.parts == null) {
+            if (main.items.isEmpty) {
+              problemsByIndex[index] =
+                  '${source.label}: JSON loaded, but no entries were recognized';
+            } else {
+              loadedByIndex[index] = main.items;
+            }
           } else {
-            loadedByIndex[index] = parsed;
+            final combined = <MediaItem>[];
+            final partProblems = <String>[];
+            final parts = main.parts!;
+            for (var partIndex = 0; partIndex < parts.length; partIndex++) {
+              try {
+                final part = await downloadAndParse(
+                  parts[partIndex], source.type, source.label, source.url);
+                if (part.parts != null) {
+                  throw const FormatException(
+                      'Nested manifests are not supported');
+                }
+                if (part.items.isEmpty) {
+                  partProblems.add('part ${partIndex + 1}: no entries found');
+                } else {
+                  combined.addAll(part.items);
+                  loadedByIndex[index] = List<MediaItem>.of(combined);
+                  publish(); // Series appear as soon as the first part is ready.
+                }
+              } catch (e) {
+                partProblems.add(
+                    'part ${partIndex + 1}: ${_shortError(e)}');
+              }
+            }
+            if (combined.isEmpty) {
+              problemsByIndex[index] = '${source.label}: '
+                  'Could not load any of ${parts.length} JSON parts. '
+                  '${partProblems.take(3).join(' | ')}';
+            } else if (partProblems.isNotEmpty) {
+              problemsByIndex[index] = '${source.label}: '
+                  '${combined.length} entries loaded, '
+                  '${partProblems.length}/${parts.length} parts had issues. '
+                  '${partProblems.take(3).join(' | ')}';
+            }
           }
         } catch (e) {
           problemsByIndex[index] = '${source.label}: ${_shortError(e)}';
@@ -170,7 +247,7 @@ class ExternalCatalogService {
     }
 
     await Future.wait(List.generate(
-      sources.length < 3 ? sources.length : 3,
+      sources.length < 2 ? sources.length : 2,
       (_) => worker(),
     ));
     final items = currentItems();
@@ -205,6 +282,43 @@ class ExternalCatalogService {
 
 /// Reads external movie, series and live-TV JSON. Does not fabricate sample entries.
 class CatalogParser {
+  /// Return resolved multipart URLs, or null for an ordinary movie/series JSON.
+  /// Relative filenames and full HTTPS links are both accepted. Reject invalid
+  /// manifests explicitly rather than reporting "no series found".
+  static List<String>? manifestParts(dynamic data, {
+    required String sourceUrl,
+  }) {
+    if (data is! Map || !data.containsKey('parts')) {
+      return null;
+    }
+    final raw = data['parts'];
+    if (raw is! List || raw.isEmpty || raw.length > 100) {
+      throw const FormatException(
+          'Invalid multipart JSON: parts must contain 1 to 100 entries');
+    }
+    final base = Uri.parse(sourceUrl);
+    final parts = <String>[];
+    final seen = <String>{};
+    for (final value in raw) {
+      final link = value is String
+          ? value.trim()
+          : value is Map && value['url'] is String
+              ? (value['url'] as String).trim()
+              : '';
+      if (link.isEmpty) {
+        throw const FormatException('Invalid multipart JSON part URL');
+      }
+      final uri = base.resolve(link);
+      if (!uri.isScheme('https') || !uri.hasAuthority) {
+        throw const FormatException('Multipart JSON parts must use HTTPS');
+      }
+      if (seen.add(uri.toString())) {
+        parts.add(uri.toString());
+      }
+    }
+    return parts;
+  }
+
   static List<MediaItem> parse(dynamic data, {
     required String type, required String category, required String sourceUrl,
   }) {

@@ -171,11 +171,23 @@ class ExternalCatalogService {
       if (uri == null || !uri.isScheme('https') || !uri.hasAuthority) {
         throw const FormatException('Catalog URL must be a valid HTTPS URL');
       }
-      final response = await _dio.get<String>(url,
-        options: Options(responseType: ResponseType.plain));
+      // Real HTTP requests return a String with ResponseType.plain.
+      // Dio interceptors (including the Android catalog regression test) may
+      // resolve the request with an already-decoded JSON Map or List instead.
+      // Do not force <String>: that causes a runtime type error on valid JSON.
+      final response = await _dio.get<dynamic>(
+        url,
+        options: Options(responseType: ResponseType.plain),
+      );
       final body = response.data;
-      if (body == null || body.trim().isEmpty) {
+      if (body == null ||
+          (body is String && body.trim().isEmpty) ||
+          (body is Map && body.isEmpty) ||
+          (body is List && body.isEmpty)) {
         throw const FormatException('JSON file is empty');
+      }
+      if (body is! String && body is! Map && body is! List) {
+        throw const FormatException('Unsupported JSON response type');
       }
       return compute(_parseCatalogTask, <String, dynamic>{
         'body': body,

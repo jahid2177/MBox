@@ -40,6 +40,14 @@
             "name": "English Series",
             "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/English_Tv_Series.json"
           },
+           {
+            "name": "English Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/English_Tv_Series-1.json"
+          },
+           {
+            "name": "English Series",
+            "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/English_Tv_Series-2.json"
+          },
           {
             "name": "Korean Series",
             "url": "https://raw.githubusercontent.com/faria2177/live-tv-channels/refs/heads/main/series/Korean_Tv_Series.json"

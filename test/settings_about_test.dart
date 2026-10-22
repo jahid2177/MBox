@@ -7,7 +7,9 @@ import 'package:mystreamflix_flutter/screens/about_screen.dart';
 
 void main() {
   testWidgets('About shows the requested developer name', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: AboutScreen())));
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: AboutScreen())),
+    );
     expect(find.text('Md Jahidul Islam'), findsOneWidget);
     expect(find.text('MyStreamFlix'), findsOneWidget);
   });
@@ -15,12 +17,21 @@ void main() {
   testWidgets('Settings shows playback and server controls', (tester) async {
     final state = AppState();
     addTearDown(state.dispose);
-    await tester.pumpWidget(AppScope(state: state,
-      child: MaterialApp(home: Scaffold(body: SettingsScreen(onOpenLiveTv: () {})))));
+
+    await tester.pumpWidget(
+      AppScope(
+        state: state,
+        child: const MaterialApp(
+          home: Scaffold(body: SettingsScreen()),
+        ),
+      ),
+    );
+
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Active content server'), findsOneWidget);
     expect(find.text('Refresh all content'), findsOneWidget);
     expect(find.text('Autoplay video'), findsOneWidget);
+    expect(find.text('Live TV source'), findsNothing);
   });
 
   test('player preferences have sensible safe defaults', () {

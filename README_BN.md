@@ -1,48 +1,45 @@
-# MBox — Netflix-inspired Flutter UI (Android / Windows / Android TV)
+# MBox Feature Update — Android / Android TV / Windows
 
-এটি **আপনার বর্তমান MBox GitHub প্রজেক্টে UI Replace করার জন্য** তৈরি, সম্পূর্ণ Backend বা Player পরিবর্তনের জন্য নয়।
+এই ZIP-এ সরাসরি পুরোনো `player_screen.dart` দেওয়া হয়নি। আপনার বর্তমান MBox Repository-এর উন্নত 483-line MX-style Player অক্ষত রাখতে একটি safe Python patch ও automated GitHub workflow দেওয়া হয়েছে।
 
-## কী বদলেছে
+## নতুন সুবিধা
 
-- `lib/theme/app_theme.dart`: সিনেমাটিক প্রায়-কালো background, লাল accent, পরিষ্কার dark theme। পূর্বের ফাইলগুলো যাতে কাজ করে তার জন্য `AppColors.teal`-এর compatibility alias বজায় রয়েছে।
-- `lib/screens/shell_screen.dart`: বড় Featured Hero, Netflix-inspired content rows, horizontal desktop/TV navigation, মোবাইলে bottom navigation + drawer, Search, Server Switch, Refresh, Settings/About।
-- `lib/widgets/media_widgets.dart`: Poster cards, title/rating, focus border/scale এবং remote/keyboard focus।
-- `lib/screens/detail_screen.dart`: Cinematic detail banner, Play, My List, genre/cast, episode list, stream source chooser।
-- `lib/screens/live_screen.dart`: Live TV channel card layout, focus indication, error/URL change controls।
+1. **MBOX intro animation:** অ্যাপ খোলার পর ২.২ সেকেন্ডের কালো/লাল সিনেমাটিক intro, তারপর Home। কোনো Demo API নেই।
+2. **Sort:** Movies ও Series-এ ডিফল্ট `Year: Newest first` এবং 2026, 2025, ... বছরভিত্তিক poster rows। Year unknown হলে শেষে। Dropdown থেকে Oldest, A–Z বা Rating বেছে নেওয়া যায়।
+3. **Settings:** শুধু `Live TV source`-এর link/tile অপসারিত; Live TV screen-এর URL edit button এবং content server switch অক্ষত।
+4. **Player Back:** ভিডিওর ওপর title-এর বাম পাশে Back button; fullscreen ও TV-তে একই।
+5. **Exit confirmation:** Android/Android TV-এর root Back এবং Windows window X চাপলে Exit/Cancel dialog।
+6. **Player controls:** Android/mobile-এ বাম দিকে vertical swipe = app brightness, ডান দিকে swipe = player volume; সব platform-এর player toolbar-এ Brightness slider; পূর্বের media_kit Volume/Audio/Subtitle/Speed/Seek controls অক্ষত। Brightness application-scoped (device-wide system brightness নয়) এবং player ছাড়লে reset হয়।
 
-## GitHub-এ কীভাবে যুক্ত করবেন
+## সবচেয়ে সহজ পদ্ধতি: GitHub Actions
 
-এই ZIP-এর `lib/` ফোল্ডারটি আপনার **সর্বশেষ** `MBox` Repository-এর মূল ফোল্ডারে merge করে একই নামের পাঁচটি ফাইল replace করুন। অন্য ফাইল Replace করবেন না।
+ZIP থেকে নিচের ফাইলগুলো **হুবহু পাথ** অনুযায়ী Repository-তে Upload ও Commit করুন:
 
-```
-lib/theme/app_theme.dart
-lib/widgets/media_widgets.dart
-lib/screens/shell_screen.dart
-lib/screens/detail_screen.dart
-lib/screens/live_screen.dart
-```
+- `scripts/apply_mbox_features.py`
+- `lib/screens/mbox_splash_screen.dart`
+- `lib/utils/catalog_sort.dart`
+- `test/catalog_sort_test.dart`
+- `.github/workflows/apply-mbox-ui-features.yml`
 
-এরপর তিনটি Build চালান:
+GitHub → Actions → **Apply MBox UI Features** → Run workflow। Workflow patch চালাবে, `flutter pub get`, `dart format`, `flutter analyze --no-fatal-infos`, test সফল হলে সংশোধিত মূল ফাইলগুলো Commit করবে। তারপর আপনার আগের Windows, Android ও Android TV Build চালান। Repo Settings → Actions → General → Workflow permissions-এ Contents write permission অনুমোদিত থাকতে হবে।
 
-```
+## বিকল্প: নিজের PC-তে
+
+Repository-এর root-এ ZIP-এর ফাইলগুলো কপি করে চালান:
+
+```powershell
+python scripts/apply_mbox_features.py
+flutter pub get
+dart format lib test/catalog_sort_test.dart
 flutter analyze --no-fatal-infos
-flutter test
-flutter build apk --release --target-platform android-arm64
+flutter test test/catalog_sort_test.dart
 ```
 
-Android TV-এর জন্য আপনার আগের workflow-তে ব্যবহৃত `--dart-define=ANDROID_TV=true` ফ্ল্যাগ বজায় রাখবেন। Windows Workflow-ও আগেরটি ব্যবহার করবেন।
+পরে `pubspec.yaml`, `lib/main.dart`, `lib/screens/shell_screen.dart`, `lib/screens/settings_screen.dart`, `lib/screens/player_screen.dart` এবং নতুন ফাইলগুলো Commit করুন।
 
-## কোনগুলো অপরিবর্তিত
+## সতর্কতা
 
-- Server 1/Server 2-এর সব Movie, Series ও Live TV JSON URL
-- JSON parsing, loading ও diagnostic logic
-- Favorites/My List-এর local storage
-- Login, Admin, Account API
-- Settings, Player এবং streaming/episode backend code
-- Android ও Android TV build workflows
-
-**জরুরি:** আপনার আগে দেওয়া Live TV feed-এ 404 দেখা গিয়েছিল। শুধু ডিজাইন পরিবর্তন করলে অনুপস্থিত JSON ফাইল ফিরে আসবে না। Live TV কাজ করার জন্য সঠিক ও অ্যাক্সেসযোগ্য JSON URL দিতে হবে।
-
-**পরীক্ষা সীমাবদ্ধতা:** ফাইলগুলোতে structural bracket ও import path পরীক্ষা করা হয়েছে। এই পরিবেশে Flutter SDK না থাকায় `flutter analyze`, Widget Test ও APK build বাস্তবে চালানো যায়নি।
-
-নিজের ব্র্যান্ডিং MBOX রেখেই Netflix-inspired Layout করা হয়েছে; Netflix-এর কোনো logo বা copyright image কপি করা হয়নি। সব কনটেন্টের artwork অ্যাপের আসল JSON source থেকে নেওয়া হয়।
+- এটি বর্তমান Netflix-style MBox repository-এর পরিচিত source markers-এর ওপর patch; source বদলে থাকলে **আধাআধি সম্পাদনা না করে** clear error দেখাবে। এমন হলে নতুন source পাঠান।
+- GitHub JSON content/source URLs পরিবর্তন করা হয় না। আগের 404 JSON লিংক এই আপডেট ঠিক করে না।
+- Flutter SDK এখানে পাওয়া যায়নি; GitHub Actions-এ `flutter analyze`, test ও APK Build দিয়ে ফল যাচাই করতে হবে।
+- Windows-এ close confirmation `window_manager` দিয়ে; Android/iOS brightness `screen_brightness` plugin দিয়ে। Windows brightness plugin সমর্থন ডিভাইসের ওপর নির্ভরশীল; কাজ না করলে warning থাকবে।

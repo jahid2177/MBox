@@ -1,0 +1,115 @@
+name: MBox Android TV 32-bit and 64-bit APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'test/**'
+      - 'pubspec.yaml'
+      - 'android/**'
+      - 'scripts/**'
+      - '.github/workflows/android-tv-32bit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-tv-apks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate native Flutter platform files
+        run: flutter create --project-name mystreamflix_flutter --org com.mystreamflix --platforms=android,ios,windows .
+
+      - name: Configure Android TV launcher and network
+        run: |
+          python3 scripts/configure_android.py
+          python3 scripts/configure_android_tv.py
+          python3 scripts/verify_android_manifest.py
+          python3 scripts/verify_android_tv.py
+
+      - name: Install packages
+        run: flutter pub get
+
+      - name: Verify known-safe preferences implementation
+        run: flutter pub deps --style=compact | grep -F 'shared_preferences_android 2.4.28'
+
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons
+
+      - name: Analyze and test
+        run: |
+          flutter analyze --no-fatal-infos
+          flutter test
+
+      - name: Install Android NDK 28.2.13676358 with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$SDK" ]; then
+            echo '::error::ANDROID_SDK_ROOT/ANDROID_HOME is not set'
+            exit 1
+          fi
+          MANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$MANAGER" ]; then
+            echo "::error::sdkmanager missing: $MANAGER"
+            exit 1
+          fi
+          REV="28.2.13676358"
+          NDK_DIR="$SDK/ndk/$REV"
+          for attempt in 1 2 3; do
+            echo "NDK install attempt $attempt/3"
+            if "$MANAGER" --sdk_root="$SDK" --install "ndk;$REV"; then
+              if [ -f "$NDK_DIR/source.properties" ] && grep -Fq "Pkg.Revision = $REV" "$NDK_DIR/source.properties"; then
+                echo "ANDROID_NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
+                echo "NDK $REV verified"
+                exit 0
+              fi
+            fi
+            rm -rf "$NDK_DIR" "$SDK/.downloadIntermediates" "$SDK/.temp" "$SDK/downloadIntermediates" "$SDK/temp"
+            if [ "$attempt" -lt 3 ]; then sleep 15; fi
+          done
+          echo '::error::Unable to install required Android NDK'
+          exit 1
+
+      - name: Build TV APKs for ARM 32-bit and ARM 64-bit
+        run: >-
+          flutter build apk --release --split-per-abi
+          --target-platform=android-arm,android-arm64
+          --dart-define=ANDROID_TV=true
+          --dart-define=ENABLE_ACCOUNTS=false
+
+      - name: Verify APK native architecture contents
+        run: |
+          python3 scripts/check_android_tv_apks.py \
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+
+      - name: Upload Android TV ARM32 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MBox-AndroidTV-32bit-armeabi-v7a
+          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Android TV ARM64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MBox-AndroidTV-64bit-arm64-v8a
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          if-no-files-found: error
+          retention-days: 14

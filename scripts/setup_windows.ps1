@@ -5,6 +5,8 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Flutter platform generation failed' }
   python scripts/configure_android.py
   if ($LASTEXITCODE -ne 0) { throw 'Android manifest configuration failed' }
+  python scripts/rename_mbox.py --generated-only
+  if ($LASTEXITCODE -ne 0) { throw 'MBox display name configuration failed' }
   flutter pub get
   if ($LASTEXITCODE -ne 0) { throw 'Flutter dependency installation failed' }
   dart run flutter_launcher_icons

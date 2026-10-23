@@ -12,6 +12,6 @@ if permission not in s:
 # without an opt-in. No passwords/tokens are sent to those content hosts.
 if 'android:usesCleartextTraffic=' not in s:
     s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
-s = s.replace('android:label="mystreamflix_flutter"', 'android:label="MyStreamFlix"')
+s = s.replace('android:label="mystreamflix_flutter"', 'android:label="MBox"')
 p.write_text(s, encoding='utf-8')
 print('Android INTERNET permission configured.')

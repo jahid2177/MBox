@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Idempotent MBox display-name fix across generated Flutter platform files.
+"""Idempotent MBox display-name fix without editing protected workflows.
 
 Run once after adding this file to the MBox repository:
     python3 scripts/rename_mbox.py
 
-Subsequent GitHub Actions builds run:
+After flutter create, a build can run:
     python3 scripts/rename_mbox.py --generated-only
+Add the call to CI workflow manually (if needed), not via auto-push.
 
 Keep pubspec.yaml's internal `name`, Android applicationId / Kotlin namespace,
 and Flutter create --project-name untouched to avoid breaking package imports.
@@ -133,31 +134,12 @@ def update_existing_project_files():
                               "\n  if ($LASTEXITCODE -ne 0) { throw 'MBox display name configuration failed' }", 1)
                 write_if_changed(ps, s)
 
-    # All CI workflows calling flutter create must update the newly-generated
-    # Android / TV / Windows labels in the same run (especially Windows title).
-    workflows = ROOT / ".github/workflows"
-    if workflows.exists():
-        for wf in sorted([*workflows.glob('*.yml'), *workflows.glob('*.yaml')]):
-            if wf.name == 'rename-mbox-app.yml':
-                continue
-            s = wf.read_text(encoding='utf-8')
-            if 'flutter create' not in s or 'rename_mbox.py --generated-only' in s:
-                continue
-            # Match GitHub Actions run: flutter create ... on one line.
-            pattern = re.compile(r'(?m)^(?P<indent>[ \t]*)run:[ \t]*flutter create[^\r\n]*(?:\r?\n|$)')
-            is_windows = bool(re.search(r'runs-on:\s*windows-', s))
-            cmd = 'python scripts/rename_mbox.py --generated-only' if is_windows else 'python3 scripts/rename_mbox.py --generated-only'
-            def insert_hook(m: re.Match[str]) -> str:
-                indent = m.group('indent')
-                # The following step should line up with the previous - name:.
-                list_indent = indent[:-2] if len(indent) >= 2 else ''
-                return (m.group(0).rstrip('\r\n') + '\n' + list_indent +
-                        '- name: Apply MBox app name\n' + indent + 'run: ' + cmd + '\n')
-            modified, count = pattern.subn(insert_hook, s, count=1)
-            if count:
-                write_if_changed(wf, modified)
-            else:
-                print(f"CHECK MANUALLY: {wf.relative_to(ROOT)} has flutter create in a multiline step")
+    # GitHub Actions GITHUB_TOKEN cannot push workflow-file modifications.
+    # Only update non-workflow source/config files here. If you need to call
+    # --generated-only after `flutter create` in a CI workflow, add that step
+    # manually using the GitHub web editor once. Do not rewrite workflow YAML
+    # from within an Action.
+    print('SKIP: Protected .github/workflows files will not be modified.')
 
 
 def main():
